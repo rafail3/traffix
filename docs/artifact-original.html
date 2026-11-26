@@ -1,0 +1,387 @@
+<title>Numărătoare mașini</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: o singură coloană îngustă, ca un carnet de pontaj; rândurile sunt butoane mari de apăsat */
+:root {
+  --bg: #eef0f2;
+  --surface: #ffffff;
+  --fg: #16191d;
+  --muted: #6a717b;
+  --line: #d9dde2;
+  --accent: #1d3f9a;      /* albastrul benzii UE de pe numărul de înmatriculare */
+  --accent-ink: #ffffff;
+  --plate: #fbd03a;       /* galben semnalizare */
+  --danger: #b4321f;
+  --f-display: "Saira Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --surface: #1b1e24; --fg: #eceef1; --muted: #9098a3; --line: #2c3139;
+    --accent: #5b82e8; --accent-ink: #0d1117; --plate: #f0c42c; --danger: #ef6b55;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --surface: #1b1e24; --fg: #eceef1; --muted: #9098a3; --line: #2c3139;
+  --accent: #5b82e8; --accent-ink: #0d1117; --plate: #f0c42c; --danger: #ef6b55;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 560px; margin: 0 auto; display: grid; gap: 20px; }
+
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--f-display); font-weight: 800; font-size: 2.1rem; line-height: 1;
+  margin: 0; letter-spacing: .01em; text-transform: uppercase; text-wrap: balance;
+}
+.sub { margin: 6px 0 0; color: var(--muted); font-size: .9rem; }
+
+.total {
+  display: flex; align-items: stretch; border: 2px solid var(--fg); border-radius: 6px; overflow: hidden;
+  font-family: var(--f-num); font-weight: 700; background: var(--surface);
+}
+.total .eu {
+  background: var(--accent); color: var(--accent-ink); font-family: var(--f-display);
+  font-size: .75rem; letter-spacing: .08em; padding: 6px 7px; display: grid; place-items: center;
+}
+.total .val { padding: 6px 12px; font-size: 1.35rem; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: 600 .85rem var(--f-body); letter-spacing: .02em;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  padding: 8px 12px; border-radius: 8px; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.warn { color: var(--danger); }
+.btn.warn.armed { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+
+ol.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.row { display: flex; align-items: center; border-top: 1px solid var(--line); background: var(--surface); position: relative; overflow: hidden; }
+.row:first-child { border-top: 0; border-radius: 11px 11px 0 0; }
+.row:last-child { border-radius: 0 0 11px 11px; }
+.row:not(.new) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* tragere cu apăsare lungă */
+.row.pressing .hit { background: color-mix(in srgb, var(--accent) 12%, transparent); transition: background .35s; }
+.row.dragging {
+  z-index: 5; border-radius: 10px; border-top-color: transparent;
+  box-shadow: 0 12px 28px rgb(0 0 0 / .22), 0 0 0 2px var(--accent);
+  will-change: transform;
+}
+.row.dragging + .row { border-top-color: transparent; }
+.list.sorting .hit:hover { background: none; }
+.list.sorting .row:not(.dragging) { transition: none; }
+
+.hit {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  background: none; border: 0; color: inherit; text-align: left; cursor: pointer;
+  padding: 14px 8px 14px 16px; font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.hit:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.hit:active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.idx { font-family: var(--f-num); font-size: .75rem; color: var(--muted); width: 2.2ch; text-align: right; flex: none; }
+.name {
+  font-family: var(--f-display); font-weight: 700; font-size: 1.35rem; letter-spacing: .02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
+.minus {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line);
+  background: transparent; color: var(--muted); font: 600 1.1rem var(--f-num); cursor: pointer; line-height: 1;
+}
+.minus:hover:not(:disabled) { color: var(--fg); border-color: var(--muted); }
+.minus:disabled { opacity: .3; cursor: default; }
+
+.count {
+  flex: none; margin: 0 14px 0 10px; min-width: 3.4ch; padding: 4px 8px; border-radius: 6px;
+  font-family: var(--f-num); font-weight: 700; font-size: 1.25rem; text-align: right;
+  font-variant-numeric: tabular-nums; background: var(--bg); color: var(--muted);
+  transition: background .2s, color .2s;
+}
+.count.on { background: var(--plate); color: #16191d; }
+.count.bump { animation: bump .22s ease-out; }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* modul editare */
+.edit-name {
+  flex: 1; min-width: 0; margin: 8px 0 8px 16px; padding: 8px 10px;
+  font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; letter-spacing: .02em;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg);
+}
+.del {
+  flex: none; margin: 0 12px 0 8px; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line);
+  background: transparent; color: var(--danger); font-size: 1.2rem; cursor: pointer; line-height: 1;
+}
+
+/* rândul nou de la final */
+.row.new { background: color-mix(in srgb, var(--bg) 50%, var(--surface)); }
+.row.new input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--fg);
+  font-family: var(--f-display); font-weight: 700; font-size: 1.35rem; letter-spacing: .02em;
+  padding: 14px 16px 14px 0;
+}
+.row.new input::placeholder { color: var(--muted); font-weight: 500; }
+.row.new .idx { margin: 0 12px 0 16px; }
+.enter-hint { flex: none; margin-right: 14px; font: 500 .7rem var(--f-num); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
+
+.foot { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 0; }
+
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row.new input:focus-visible { outline: none; }
+.row.new:focus-within { box-shadow: inset 3px 0 0 var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { .count.bump { animation: none; } .count { transition: none; } }
+@media (max-width: 420px) { h1 { font-size: 1.75rem; } .name { font-size: 1.2rem; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Numărătoare mașini</h1>
+      <p class="sub">Apasă pe o marcă: +1. Ține apăsat și trage ca s-o muți. Scrie jos și dă Enter pentru marcă nouă.</p>
+    </div>
+    <div class="total" aria-label="Total mașini numărate">
+      <span class="eu">RO</span><span class="val" id="total">0</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" id="editBtn" type="button" aria-pressed="false">Editează lista</button>
+    <button class="btn" id="sortBtn" type="button">Sortează după număr</button>
+    <button class="btn warn" id="resetBtn" type="button">Resetează numerele</button>
+  </div>
+
+  <ol class="list" id="list"></ol>
+
+  <p class="foot">Numerele și ordinea rămân salvate în browserul tău. „−” scade cu 1 dacă ai apăsat greșit.</p>
+</div>
+
+<script>
+(function () {
+  const KEY = 'numaratoare-masini-v1';
+  const DEFAULT = ['Dacia','Volkswagen','Renault','Skoda','Ford','Opel','Toyota','Hyundai','BMW','Mercedes-Benz','Audi','Kia','Peugeot','Suzuki'];
+  let items = load() || DEFAULT.map(n => ({ name: n, n: 0 }));
+  let editing = false;
+  let draft = '';
+  const list = document.getElementById('list');
+  const totalEl = document.getElementById('total');
+
+  function load() {
+    try { const v = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(v) ? v : null; } catch (e) { return null; }
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) {} }
+
+  function render(focusNew) {
+    list.innerHTML = '';
+    items.forEach((it, i) => {
+      const li = document.createElement('li');
+      li.className = 'row';
+      if (editing) {
+        const inp = document.createElement('input');
+        inp.className = 'edit-name'; inp.id = 'edit-' + i; inp.value = it.name;
+        inp.setAttribute('aria-label', 'Nume marcă ' + (i + 1));
+        inp.addEventListener('input', () => { it.name = inp.value; save(); });
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); items.splice(i + 1, 0, { name: '', n: 0 }); save(); render(); focusEdit(i + 1); }
+        });
+        const del = document.createElement('button');
+        del.className = 'del'; del.type = 'button'; del.textContent = '×';
+        del.setAttribute('aria-label', 'Șterge ' + it.name);
+        del.addEventListener('click', () => { items.splice(i, 1); save(); render(); });
+        li.append(inp, del);
+      } else {
+        li.dataset.i = i;
+        const hit = document.createElement('button');
+        hit.className = 'hit'; hit.type = 'button';
+        hit.addEventListener('pointerdown', e => onDown(e, li));
+        hit.setAttribute('aria-label', it.name + ', ' + it.n + '. Apasă pentru +1');
+        hit.innerHTML = '<span class="idx"></span><span class="name"></span>';
+        hit.querySelector('.idx').textContent = i + 1;
+        hit.querySelector('.name').textContent = it.name || '(fără nume)';
+        const minus = document.createElement('button');
+        minus.className = 'minus'; minus.type = 'button'; minus.textContent = '−';
+        minus.disabled = it.n === 0;
+        minus.setAttribute('aria-label', 'Scade ' + it.name);
+        const count = document.createElement('span');
+        count.className = 'count' + (it.n > 0 ? ' on' : '');
+        count.textContent = it.n;
+        hit.addEventListener('click', () => {
+          if (suppressClick) { suppressClick = false; return; }
+          change(i, 1, count, minus, hit);
+        });
+        minus.addEventListener('click', () => change(i, -1, count, minus, hit));
+        li.append(hit, minus, count);
+      }
+      list.append(li);
+    });
+
+    // rând gol la final pentru marcă nouă
+    const li = document.createElement('li');
+    li.className = 'row new';
+    li.innerHTML = '<span class="idx"></span><input id="newBrand" type="text" autocomplete="off" placeholder="Scrie o marcă nouă…" aria-label="Marcă nouă"><span class="enter-hint">Enter</span>';
+    li.querySelector('.idx').textContent = items.length + 1;
+    const inp = li.querySelector('input');
+    inp.value = draft;
+    inp.addEventListener('input', () => { draft = inp.value; });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = inp.value.trim();
+        if (!v) return;
+        items.push({ name: v, n: 0 }); draft = ''; save(); render(true);
+      }
+    });
+    list.append(li);
+    if (focusNew) inp.focus();
+    updateTotal();
+  }
+
+  function focusEdit(i) { const el = document.getElementById('edit-' + i); if (el) el.focus(); }
+
+  function change(i, d, countEl, minusEl, hitEl) {
+    const it = items[i];
+    it.n = Math.max(0, it.n + d);
+    countEl.textContent = it.n;
+    countEl.classList.toggle('on', it.n > 0);
+    minusEl.disabled = it.n === 0;
+    hitEl.setAttribute('aria-label', it.name + ', ' + it.n + '. Apasă pentru +1');
+    if (d > 0) { countEl.classList.remove('bump'); void countEl.offsetWidth; countEl.classList.add('bump'); }
+    save(); updateTotal();
+  }
+
+  /* ---- mutare cu apăsare lungă ---- */
+  const LONG_MS = 380, SLOP = 8, EDGE = 70;
+  let drag = null;
+  let suppressClick = false;
+
+  function onDown(e, li) {
+    if (editing || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    drag = { li, src: e.currentTarget, pid: e.pointerId, x0: e.clientX, ys: e.clientY, cx: e.clientX, cy: e.clientY, active: false };
+    li.classList.add('pressing');
+    drag.timer = setTimeout(startDrag, LONG_MS);
+  }
+
+  function cancelPress() {
+    if (!drag) return;
+    clearTimeout(drag.timer);
+    drag.li.classList.remove('pressing');
+    drag = null;
+  }
+
+  function startDrag() {
+    if (!drag) return;
+    const d = drag;
+    d.active = true;
+    d.li.classList.remove('pressing');
+    d.li.classList.add('dragging');
+    list.classList.add('sorting');
+    d.y0 = d.cy + window.scrollY;
+    d.origOffset = d.li.offsetTop;
+    try { d.src.setPointerCapture(d.pid); } catch (err) {}
+    try { navigator.vibrate && navigator.vibrate(15); } catch (err) {}
+    const tick = () => {
+      if (!drag || !drag.active) return;
+      let v = 0;
+      if (drag.cy < EDGE) v = -(EDGE - drag.cy) / 4;
+      else if (drag.cy > window.innerHeight - EDGE) v = (drag.cy - (window.innerHeight - EDGE)) / 4;
+      if (v) { window.scrollBy(0, v); updateDrag(); }
+      drag.raf = requestAnimationFrame(tick);
+    };
+    d.raf = requestAnimationFrame(tick);
+  }
+
+  function updateDrag() {
+    const d = drag, li = d.li;
+    let moved = true;
+    while (moved) {
+      moved = false;
+      const prev = li.previousElementSibling;
+      if (prev) {
+        const r = prev.getBoundingClientRect();
+        if (d.cy < r.top + r.height / 2) { list.insertBefore(li, prev); moved = true; continue; }
+      }
+      const next = li.nextElementSibling;
+      if (next && !next.classList.contains('new')) {
+        const r = next.getBoundingClientRect();
+        if (d.cy > r.top + r.height / 2) { list.insertBefore(next, li); moved = true; }
+      }
+    }
+    const dy = (d.cy + window.scrollY) - d.y0 - (li.offsetTop - d.origOffset);
+    li.style.transform = 'translateY(' + dy + 'px)';
+  }
+
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    if (!drag.active) { cancelPress(); return; }
+    cancelAnimationFrame(drag.raf);
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 400);
+    const order = [...list.querySelectorAll('.row[data-i]')].map(r => +r.dataset.i);
+    items = order.map(i => items[i]);
+    drag = null;
+    list.classList.remove('sorting');
+    save(); render();
+  }
+
+  document.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    drag.cx = e.clientX; drag.cy = e.clientY;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.ys) > SLOP) cancelPress();
+      return;
+    }
+    updateDrag();
+  });
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+  document.addEventListener('touchmove', e => { if (drag && drag.active) e.preventDefault(); }, { passive: false });
+  list.addEventListener('contextmenu', e => { if (e.target.closest('.row:not(.new)') && !editing) e.preventDefault(); });
+
+  function updateTotal() { totalEl.textContent = items.reduce((s, it) => s + it.n, 0); }
+
+  document.getElementById('editBtn').addEventListener('click', e => {
+    editing = !editing;
+    if (!editing) { items = items.filter(it => it.name.trim()); items.forEach(it => it.name = it.name.trim()); save(); }
+    e.currentTarget.setAttribute('aria-pressed', editing);
+    e.currentTarget.textContent = editing ? 'Gata' : 'Editează lista';
+    render();
+  });
+
+  document.getElementById('sortBtn').addEventListener('click', () => {
+    items.sort((a, b) => b.n - a.n); save(); render();
+  });
+
+  const resetBtn = document.getElementById('resetBtn');
+  let armTimer = null;
+  resetBtn.addEventListener('click', () => {
+    if (resetBtn.classList.contains('armed')) {
+      clearTimeout(armTimer);
+      items.forEach(it => it.n = 0); save(); render();
+      resetBtn.classList.remove('armed'); resetBtn.textContent = 'Resetează numerele';
+    } else {
+      resetBtn.classList.add('armed'); resetBtn.textContent = 'Sigur? Apasă din nou';
+      armTimer = setTimeout(() => { resetBtn.classList.remove('armed'); resetBtn.textContent = 'Resetează numerele'; }, 3000);
+    }
+  });
+
+  render();
+})();
+</script>
