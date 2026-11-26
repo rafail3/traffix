@@ -21,7 +21,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CarSpotter",
+  title: "Traffix",
   description: "Numără mașinile pe mărci: apeși pe marcă și crește numărul.",
 };
 

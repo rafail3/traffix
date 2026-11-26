@@ -1,5 +1,5 @@
-import CarCounter from "./CarCounter";
+import Traffix from "./Traffix";
 
 export default function Home() {
-  return <CarCounter />;
+  return <Traffix />;
 }

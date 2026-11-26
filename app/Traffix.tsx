@@ -28,7 +28,7 @@ function bump(el: Element | null | undefined) {
   );
 }
 
-export default function CarCounter() {
+export default function Traffix() {
   const [items, setItems] = useState<Row[] | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -223,7 +223,7 @@ export default function CarCounter() {
     <div className="wrap">
       <header>
         <div>
-          <h1>CarSpotter</h1>
+          <h1>Traffix</h1>
           <p className="sub">Apasă pe o marcă: +1. Ține apăsat și trage ca s-o muți. Scrie jos și dă Enter pentru marcă nouă.</p>
         </div>
         <div className="total" aria-label="Total mașini numărate">
