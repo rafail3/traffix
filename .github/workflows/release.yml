@@ -90,9 +90,11 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          # 1.2.3 -> 1002003: always grows with the version, fits Android's int limit.
-          VERSION_CODE: ${{ needs.release.outputs.major * 1000000 + needs.release.outputs.minor * 1000 + needs.release.outputs.patch }}
-        run: ./gradlew assembleRelease --no-daemon -PversionName="$VERSION" -PversionCode="$VERSION_CODE"
+          MAJOR: ${{ needs.release.outputs.major }}
+          MINOR: ${{ needs.release.outputs.minor }}
+          PATCH: ${{ needs.release.outputs.patch }}
+        # 1.2.3 -> 1002003: always grows with the version, fits Android's int limit.
+        run: ./gradlew assembleRelease --no-daemon -PversionName="$VERSION" -PversionCode="$((MAJOR * 1000000 + MINOR * 1000 + PATCH))"
 
       - name: Verify signature
         run: |
