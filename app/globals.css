@@ -186,6 +186,8 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
   padding: 10px 12px; min-height: 44px; font: 600 1.05rem var(--f-body);
   border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg);
 }
+.dlg input[aria-invalid="true"] { border-color: var(--danger); }
+.field-err { margin: 0; color: var(--danger); font-size: .85rem; font-weight: 600; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .dlg-actions .btn { min-height: 44px; padding-inline: 16px; }
 ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }

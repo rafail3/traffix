@@ -40,6 +40,7 @@ export default function Traffix() {
   const [games, setGames] = useState<Game[]>([]);
   const [view, setView] = useState<"game" | "history">("game");
   const [gameName, setGameName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [notice, setNotice] = useState("");
   const [armedDel, setArmedDel] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -236,18 +237,35 @@ export default function Traffix() {
   }
 
   /* ---- saved games ---- */
+  const nameTaken = (name: string) => games.some((g) => g.name.trim().toLowerCase() === name.trim().toLowerCase());
+
+  // Default name, made unique if a game was already saved in the same minute.
+  function defaultName() {
+    const base = "Traffix " + when(Date.now());
+    let name = base;
+    for (let i = 2; nameTaken(name); i++) name = `${base} (${i})`;
+    return name;
+  }
+
   function openSave() {
-    setGameName("Traffix " + when(Date.now()));
+    setGameName(defaultName());
+    setNameError("");
     saveDlg.current?.showModal();
   }
 
   function saveGame(e: FormEvent) {
     e.preventDefault();
     if (!items) return;
+    const name = gameName.trim() || defaultName();
+    if (nameTaken(name)) {
+      setNameError("Ai deja un joc cu numele ăsta. Alege alt nume.");
+      document.getElementById("game-name")?.focus();
+      return;
+    }
     const rows = items.filter((r) => r.name.trim());
     const game: Game = {
       id: crypto.randomUUID(),
-      name: gameName.trim() || "Traffix " + when(Date.now()),
+      name,
       savedAt: Date.now(),
       counts: Object.fromEntries(rows.map((r) => [r.name.trim(), r.n])),
     };
@@ -468,8 +486,11 @@ export default function Traffix() {
             autoComplete="off"
             maxLength={80}
             value={gameName}
-            onChange={(e) => setGameName(e.target.value)}
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? "game-name-err" : undefined}
+            onChange={(e) => { setGameName(e.target.value); setNameError(""); }}
           />
+          {nameError && <p id="game-name-err" className="field-err" role="alert">{nameError}</p>}
           <div className="dlg-actions">
             <button className="btn" type="button" onClick={() => saveDlg.current?.close()}>Anulează</button>
             <button className="btn primary" type="submit">Salvează</button>
