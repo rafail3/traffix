@@ -2,7 +2,13 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
-import AndroidDownload from "./AndroidDownload";
+import {
+  ArrowCounterClockwise, ArrowLeft, Check, CheckCircle, ClockCounterClockwise, FloppyDisk,
+  List, Minus, PencilSimple, SortDescending, Trash, X,
+} from "@phosphor-icons/react";
+import { App as CapApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { AndroidCard, useLatestApk } from "./AndroidDownload";
 import { DEFAULT_BRANDS } from "@/lib/brands";
 import { rankBrands, type Game } from "@/lib/rank";
 import { loadProfile, saveProfile, type Item, type Profile } from "@/lib/storage";
@@ -28,6 +34,16 @@ const when = (t: number) =>
 const sumOf = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 const byCount = (counts: Record<string, number>) => Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
 
+/** Two labels stacked in one cell: the button keeps its width when the label changes. */
+function Swap({ on, off, onLabel }: { on: boolean; off: string; onLabel: string }) {
+  return (
+    <span className="swap">
+      <span aria-hidden={on}>{off}</span>
+      <span aria-hidden={!on}>{onLabel}</span>
+    </span>
+  );
+}
+
 function bump(el: Element | null | undefined) {
   if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   el.animate(
@@ -42,6 +58,23 @@ export default function Traffix() {
   const [view, setView] = useState<"game" | "history">("game");
   const [gameName, setGameName] = useState("");
   const [nameError, setNameError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuDlg = useRef<HTMLDialogElement>(null);
+  const apk = useLatestApk();
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  // Android back button (APK only): close what is open first, then leave history, then minimise.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = CapApp.addListener("backButton", () => {
+      const open = [saveDlg.current, menuDlg.current].find((d) => d?.open);
+      if (open) open.close();
+      else if (viewRef.current === "history") setView("game");
+      else CapApp.minimizeApp();
+    });
+    return () => { sub.then((s) => s.remove()); };
+  }, []);
   const [notice, setNotice] = useState("");
   const [armedDel, setArmedDel] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -295,31 +328,50 @@ export default function Traffix() {
   const total = items?.reduce((s, it) => s + it.n, 0) ?? 0;
 
   return (
-    <div className="wrap">
-      <header>
-        <div>
-          <h1>Traffix</h1>
-          <p className="sub">Apasă pe o marcă: +1. Ține apăsat și trage ca s-o muți. Scrie jos și dă Enter pentru marcă nouă.</p>
-        </div>
-        <div className="head-actions">
-          <div className="total" aria-label="Total mașini numărate">
-            <span className="eu">RO</span>
-            <span className="val">{total}</span>
-          </div>
-          {view === "game" && (
-            <button className="btn primary" type="button" onClick={openSave} disabled={editing || total === 0}>
-              Salvează jocul
-            </button>
-          )}
-        </div>
+    <>
+    <div className="page">
+    <main className="wrap">
+      <header className="topbar">
+        <h1 className="brand">Traffix</h1>
+        {apk.status !== "native" && (
+          <button
+            className="icon-btn burger"
+            type="button"
+            aria-label="Meniu"
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
+            onClick={() => { menuDlg.current?.showModal(); setMenuOpen(true); }}
+          >
+            <List size={24} weight="bold" aria-hidden="true" />
+          </button>
+        )}
       </header>
 
-      <p className="notice" role="status" aria-live="polite">{notice}</p>
+      <section className="score" aria-label="Jocul curent">
+        <div className="total" aria-label={`Total: ${total} mașini numărate`}>
+          <span className="eu" aria-hidden="true">RO</span>
+          <span className="val" aria-hidden="true">{total}</span>
+        </div>
+        {view === "game" && (
+          <button className="btn primary" type="button" onClick={openSave} disabled={editing || total === 0}>
+            <FloppyDisk size={20} weight="bold" aria-hidden="true" />
+            Salvează jocul
+          </button>
+        )}
+      </section>
+
+      <p className="notice" role="status" aria-live="polite">
+        {notice && <CheckCircle size={18} weight="fill" aria-hidden="true" />}
+        {notice}
+      </p>
 
       {view === "history" ? (
         <section className="history" aria-labelledby="history-title">
           <div className="toolbar">
-            <button className="btn" type="button" onClick={() => setView("game")}>Înapoi la joc</button>
+            <button className="btn" type="button" onClick={() => setView("game")}>
+              <ArrowLeft size={18} weight="bold" aria-hidden="true" />
+              Înapoi la joc
+            </button>
           </div>
           <h2 id="history-title">Jocuri salvate</h2>
           {games.length === 0 ? (
@@ -354,7 +406,7 @@ export default function Traffix() {
                         type="button"
                         onClick={() => deleteGame(g.id)}
                       >
-                        {armedDel === g.id ? "Sigur? Apasă din nou" : "Șterge jocul"}
+                        <Swap on={armedDel === g.id} off="Șterge jocul" onLabel="Sigur? Apasă iar" />
                       </button>
                     </details>
                   </li>
@@ -367,22 +419,28 @@ export default function Traffix() {
       <>
       <div className="toolbar">
         <button className="btn" type="button" aria-pressed={editing} onClick={toggleEdit}>
-          {editing ? "Gata" : "Editează lista"}
+          {editing ? <Check size={18} weight="bold" aria-hidden="true" /> : <PencilSimple size={18} weight="bold" aria-hidden="true" />}
+          <Swap on={editing} off="Editează" onLabel="Gata" />
         </button>
         <button
           className="btn"
           type="button"
+          disabled={editing}
           onClick={() => setItems((prev) => prev && [...prev].sort((a, b) => b.n - a.n))}
         >
-          Sortează după număr
-        </button>
-        <button className={"btn warn" + (armed ? " armed" : "")} type="button" onClick={reset}>
-          {armed ? "Sigur? Apasă din nou" : "Resetează numerele"}
+          <SortDescending size={18} weight="bold" aria-hidden="true" />
+          Sortează
         </button>
         <button className="btn" type="button" onClick={() => setView("history")} disabled={editing}>
+          <ClockCounterClockwise size={18} weight="bold" aria-hidden="true" />
           Istoric{games.length > 0 ? ` (${games.length})` : ""}
         </button>
+        <button className={"btn warn push" + (armed ? " armed" : "")} type="button" onClick={reset} disabled={editing}>
+          <ArrowCounterClockwise size={18} weight="bold" aria-hidden="true" />
+          <Swap on={armed} off="Resetează" onLabel="Sigur?" />
+        </button>
       </div>
+      <p className="hint">Apasă pe o marcă pentru +1. Ține apăsat și trage ca s-o muți. Scrie jos o marcă nouă și apasă Enter.</p>
 
       {items && (
         <ol
@@ -419,7 +477,7 @@ export default function Traffix() {
                     aria-label={"Șterge " + it.name}
                     onClick={() => setItems((prev) => prev && prev.filter((r) => r.id !== it.id))}
                   >
-                    ×
+                    <Trash size={18} weight="bold" aria-hidden="true" />
                   </button>
                 </>
               ) : (
@@ -444,7 +502,7 @@ export default function Traffix() {
                     aria-label={"Scade " + it.name}
                     onClick={() => change(it.id, -1)}
                   >
-                    −
+                    <Minus size={18} weight="bold" aria-hidden="true" />
                   </button>
                   <span className={"count" + (it.n > 0 ? " on" : "")}>{it.n}</span>
                 </>
@@ -473,9 +531,31 @@ export default function Traffix() {
       </>
       )}
 
-      <AndroidDownload />
+      <p className="foot">Lista ta, numerele și jocurile salvate rămân pe dispozitivul tău.</p>
+    </main>
 
-      <p className="foot">Lista ta, numerele și jocurile salvate rămân în browserul tău. „−” scade cu 1 dacă ai apăsat greșit.</p>
+      {apk.status !== "native" && (
+        <aside className="side">
+          <AndroidCard apk={apk} qr />
+        </aside>
+      )}
+    </div>
+
+      <dialog
+        ref={menuDlg}
+        className="sheet"
+        aria-label="Meniu"
+        onClose={() => setMenuOpen(false)}
+        onClick={(e) => { if (e.target === e.currentTarget) menuDlg.current?.close(); }}
+      >
+        <div className="sheet-head">
+          <span className="brand">Traffix</span>
+          <button className="icon-btn" type="button" aria-label="Închide meniul" onClick={() => menuDlg.current?.close()}>
+            <X size={22} weight="bold" aria-hidden="true" />
+          </button>
+        </div>
+        <AndroidCard apk={apk} />
+      </dialog>
 
       <dialog ref={saveDlg} className="dlg" aria-labelledby="save-title">
         <form onSubmit={saveGame}>
@@ -500,6 +580,6 @@ export default function Traffix() {
           </div>
         </form>
       </dialog>
-    </div>
+    </>
   );
 }
