@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
-import { DEFAULT_BRANDS, loadItems, saveItems, type Item } from "@/lib/storage";
+import { DEFAULT_BRANDS } from "@/lib/brands";
+import { rankBrands, type Game } from "@/lib/rank";
+import { loadProfile, saveProfile, type Item, type Profile } from "@/lib/storage";
 
 type Row = Item & { id: string };
 
@@ -20,6 +22,11 @@ type Drag = {
 
 const label = (it: Item) => `${it.name}, ${it.n}. Apasă pentru +1`;
 
+const when = (t: number) =>
+  new Date(t).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const sumOf = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
+const byCount = (counts: Record<string, number>) => Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+
 function bump(el: Element | null | undefined) {
   if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   el.animate(
@@ -30,6 +37,11 @@ function bump(el: Element | null | undefined) {
 
 export default function Traffix() {
   const [items, setItems] = useState<Row[] | null>(null);
+  const [games, setGames] = useState<Game[]>([]);
+  const [view, setView] = useState<"game" | "history">("game");
+  const [gameName, setGameName] = useState("");
+  const [notice, setNotice] = useState("");
+  const [armedDel, setArmedDel] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [armed, setArmed] = useState(false);
@@ -41,14 +53,20 @@ export default function Traffix() {
   const suppressClick = useRef(false);
   const armTimer = useRef<number | undefined>(undefined);
   const focusEditId = useRef<string | null>(null);
+  const profile = useRef<Profile | null>(null);
+  const saveDlg = useRef<HTMLDialogElement>(null);
+  const noticeTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    setItems((loadItems() ?? DEFAULT_BRANDS.map((name) => ({ name, n: 0 }))).map(withId));
+    const p = loadProfile();
+    profile.current = p;
+    setItems(p.rows.map(withId));
+    setGames(p.games);
   }, []);
 
   useEffect(() => {
-    if (items) saveItems(items);
-  }, [items]);
+    if (items && profile.current) saveProfile({ ...profile.current, rows: items, games });
+  }, [items, games]);
 
   useLayoutEffect(() => {
     if (!focusEditId.current) return;
@@ -217,6 +235,44 @@ export default function Traffix() {
     }
   }
 
+  /* ---- saved games ---- */
+  function openSave() {
+    setGameName("Traffix " + when(Date.now()));
+    saveDlg.current?.showModal();
+  }
+
+  function saveGame(e: FormEvent) {
+    e.preventDefault();
+    if (!items) return;
+    const rows = items.filter((r) => r.name.trim());
+    const game: Game = {
+      id: crypto.randomUUID(),
+      name: gameName.trim() || "Traffix " + when(Date.now()),
+      savedAt: Date.now(),
+      counts: Object.fromEntries(rows.map((r) => [r.name.trim(), r.n])),
+    };
+    const next = [...games, game];
+    setGames(next);
+    // New game: same brand list, zeroed, ordered by what this user has seen most so far.
+    setItems(rankBrands(rows.map((r) => r.name.trim()), next, DEFAULT_BRANDS).map((name) => withId({ name, n: 0 })));
+    saveDlg.current?.close();
+    window.scrollTo({ top: 0 });
+    clearTimeout(noticeTimer.current);
+    setNotice(`Am salvat „${game.name}”. Joc nou pornit, cu mărcile văzute cel mai des sus.`);
+    noticeTimer.current = window.setTimeout(() => setNotice(""), 5000);
+  }
+
+  function deleteGame(id: string) {
+    clearTimeout(armTimer.current);
+    if (armedDel === id) {
+      setGames((prev) => prev.filter((g) => g.id !== id));
+      setArmedDel(null);
+    } else {
+      setArmedDel(id);
+      armTimer.current = window.setTimeout(() => setArmedDel(null), 3000);
+    }
+  }
+
   const total = items?.reduce((s, it) => s + it.n, 0) ?? 0;
 
   return (
@@ -226,12 +282,70 @@ export default function Traffix() {
           <h1>Traffix</h1>
           <p className="sub">Apasă pe o marcă: +1. Ține apăsat și trage ca s-o muți. Scrie jos și dă Enter pentru marcă nouă.</p>
         </div>
-        <div className="total" aria-label="Total mașini numărate">
-          <span className="eu">RO</span>
-          <span className="val">{total}</span>
+        <div className="head-actions">
+          <div className="total" aria-label="Total mașini numărate">
+            <span className="eu">RO</span>
+            <span className="val">{total}</span>
+          </div>
+          {view === "game" && (
+            <button className="btn primary" type="button" onClick={openSave} disabled={editing || total === 0}>
+              Salvează jocul
+            </button>
+          )}
         </div>
       </header>
 
+      <p className="notice" role="status" aria-live="polite">{notice}</p>
+
+      {view === "history" ? (
+        <section className="history" aria-labelledby="history-title">
+          <div className="toolbar">
+            <button className="btn" type="button" onClick={() => setView("game")}>Înapoi la joc</button>
+          </div>
+          <h2 id="history-title">Jocuri salvate</h2>
+          {games.length === 0 ? (
+            <p className="empty">Niciun joc salvat încă. Când termini de numărat, apasă „Salvează jocul” sus.</p>
+          ) : (
+            <ol className="games">
+              {[...games].reverse().map((g) => {
+                const ranked = byCount(g.counts);
+                return (
+                  <li key={g.id}>
+                    <details>
+                      <summary>
+                        <span className="g-name">{g.name}</span>
+                        <span className="g-meta">
+                          {when(g.savedAt)} · {sumOf(g.counts)} mașini
+                        </span>
+                        {ranked.length > 0 && (
+                          <span className="g-top">{ranked.slice(0, 3).map(([b, n]) => `${b} ${n}`).join(" · ")}</span>
+                        )}
+                      </summary>
+                      {ranked.length > 0 ? (
+                        <ol className="g-counts">
+                          {ranked.map(([b, n]) => (
+                            <li key={b}><span>{b}</span><span className="num">{n}</span></li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="empty">Nicio mașină numărată în jocul ăsta.</p>
+                      )}
+                      <button
+                        className={"btn warn" + (armedDel === g.id ? " armed" : "")}
+                        type="button"
+                        onClick={() => deleteGame(g.id)}
+                      >
+                        {armedDel === g.id ? "Sigur? Apasă din nou" : "Șterge jocul"}
+                      </button>
+                    </details>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </section>
+      ) : (
+      <>
       <div className="toolbar">
         <button className="btn" type="button" aria-pressed={editing} onClick={toggleEdit}>
           {editing ? "Gata" : "Editează lista"}
@@ -245,6 +359,9 @@ export default function Traffix() {
         </button>
         <button className={"btn warn" + (armed ? " armed" : "")} type="button" onClick={reset}>
           {armed ? "Sigur? Apasă din nou" : "Resetează numerele"}
+        </button>
+        <button className="btn" type="button" onClick={() => setView("history")} disabled={editing}>
+          Istoric{games.length > 0 ? ` (${games.length})` : ""}
         </button>
       </div>
 
@@ -334,7 +451,31 @@ export default function Traffix() {
         </ol>
       )}
 
-      <p className="foot">Numerele și ordinea rămân salvate în browserul tău. „−” scade cu 1 dacă ai apăsat greșit.</p>
+      </>
+      )}
+
+      <p className="foot">Lista ta, numerele și jocurile salvate rămân în browserul tău. „−” scade cu 1 dacă ai apăsat greșit.</p>
+
+      <dialog ref={saveDlg} className="dlg" aria-labelledby="save-title">
+        <form onSubmit={saveGame}>
+          <h2 id="save-title">Salvează jocul</h2>
+          <p className="dlg-sub">{total} mașini numărate. După salvare pornește un joc nou, de la 0.</p>
+          <label htmlFor="game-name">Numele jocului</label>
+          <input
+            id="game-name"
+            name="game-name"
+            type="text"
+            autoComplete="off"
+            maxLength={80}
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
+          />
+          <div className="dlg-actions">
+            <button className="btn" type="button" onClick={() => saveDlg.current?.close()}>Anulează</button>
+            <button className="btn primary" type="submit">Salvează</button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }

@@ -143,3 +143,49 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
 @media (prefers-reduced-motion: reduce) { .count { transition: none; } }
 @media (max-width: 420px) { h1 { font-size: 1.75rem; } .name { font-size: 1.2rem; } }
+
+/* salvare + istoric */
+.head-actions { display: flex; align-items: stretch; gap: 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, var(--fg)); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:disabled:hover { border-color: var(--line); }
+.head-actions .btn { min-height: 44px; }
+
+.notice { margin: -8px 0 0; font-size: .9rem; }
+.notice:empty { display: none; }
+
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.4rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+.history { display: grid; gap: 16px; }
+.empty { color: var(--muted); margin: 0; }
+ol.games { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+ol.games > li + li { border-top: 1px solid var(--line); }
+.games summary { display: grid; gap: 2px; padding: 14px 16px; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
+.games summary::-webkit-details-marker { display: none; }
+.games summary:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.games summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.g-name { font-family: var(--f-display); font-weight: 700; font-size: 1.2rem; letter-spacing: .02em; overflow-wrap: anywhere; }
+.g-meta { font: 500 .8rem var(--f-num); color: var(--muted); font-variant-numeric: tabular-nums; }
+.g-top { font-size: .9rem; color: var(--muted); }
+.games details[open] summary { border-bottom: 1px solid var(--line); }
+.games details > :not(summary) { margin: 12px 16px; }
+ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
+.g-counts li { display: flex; justify-content: space-between; gap: 12px; }
+.g-counts .num { font-family: var(--f-num); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.dlg {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg);
+  padding: 20px; width: min(420px, calc(100% - 32px));
+  box-shadow: 0 16px 40px rgb(0 0 0 / .25); overscroll-behavior: contain;
+}
+.dlg::backdrop { background: rgb(0 0 0 / .5); }
+.dlg form { display: grid; gap: 10px; }
+.dlg-sub { margin: 0 0 6px; color: var(--muted); font-size: .9rem; }
+.dlg label { font-weight: 600; font-size: .85rem; }
+.dlg input {
+  padding: 10px 12px; min-height: 44px; font: 600 1.05rem var(--f-body);
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg);
+}
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.dlg-actions .btn { min-height: 44px; padding-inline: 16px; }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }

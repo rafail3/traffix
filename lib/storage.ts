@@ -1,24 +1,36 @@
+import { DEFAULT_BRANDS } from "./brands";
+import type { Game } from "./rank";
+
 export type Item = { name: string; n: number };
 
-// Same key and format as the original single-file app.
-const KEY = "numaratoare-masini-v1";
+/**
+ * Everything about one user lives here: their own brand list (with the counts of
+ * the game in progress) and their saved games. Local only for now; the id is what
+ * an account will claim when profiles move to a database.
+ */
+export type Profile = { id: string; createdAt: number; rows: Item[]; games: Game[] };
 
-export const DEFAULT_BRANDS = [
-  "Dacia", "Volkswagen", "Renault", "Skoda", "Ford", "Opel", "Toyota",
-  "Hyundai", "BMW", "Mercedes-Benz", "Audi", "Kia", "Peugeot", "Suzuki",
-];
+const KEY = "traffix-profile-v1";
 
-export function loadItems(): Item[] | null {
+const fresh = (): Profile => ({
+  id: crypto.randomUUID(),
+  createdAt: Date.now(),
+  rows: DEFAULT_BRANDS.map((name) => ({ name, n: 0 })),
+  games: [],
+});
+
+export function loadProfile(): Profile {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    return Array.isArray(v) ? v : null;
-  } catch {
-    return null;
-  }
+    const p = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    if (p && typeof p.id === "string" && Array.isArray(p.rows) && Array.isArray(p.games)) return p;
+  } catch {}
+  const p = fresh();
+  saveProfile(p);
+  return p;
 }
 
-export function saveItems(items: Item[]) {
+export function saveProfile(p: Profile) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(items.map(({ name, n }) => ({ name, n }))));
+    localStorage.setItem(KEY, JSON.stringify({ ...p, rows: p.rows.map(({ name, n }) => ({ name, n })) }));
   } catch {}
 }
