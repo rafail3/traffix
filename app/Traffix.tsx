@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
+import AndroidDownload from "./AndroidDownload";
 import { DEFAULT_BRANDS } from "@/lib/brands";
 import { rankBrands, type Game } from "@/lib/rank";
 import { loadProfile, saveProfile, type Item, type Profile } from "@/lib/storage";
@@ -471,6 +472,8 @@ export default function Traffix() {
 
       </>
       )}
+
+      <AndroidDownload />
 
       <p className="foot">Lista ta, numerele și jocurile salvate rămân în browserul tău. „−” scade cu 1 dacă ai apăsat greșit.</p>
 
