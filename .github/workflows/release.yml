@@ -1,0 +1,114 @@
+name: Release
+
+# Every push to main: semantic-release reads the commits since the last tag and, if
+# any of them is a feat/fix/perf (or breaking), tags vX.Y.Z and creates a GitHub
+# Release. Each new release then gets a freshly built, signed APK attached; the site's
+# download button always points at the latest one.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version + GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.semrel.outputs.new_release_published }}
+      version: ${{ steps.semrel.outputs.new_release_version }}
+      major: ${{ steps.semrel.outputs.new_release_major_version }}
+      minor: ${{ steps.semrel.outputs.new_release_minor_version }}
+      patch: ${{ steps.semrel.outputs.new_release_patch_version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - id: semrel
+        uses: cycjimmy/semantic-release-action@v8
+        with:
+          semantic_version: 26.0.1
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@10.4.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  apk:
+    name: Signed APK
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      TAG: v${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Web build (static export)
+        run: |
+          npm ci
+          STATIC_EXPORT=1 npm run build
+          npx cap sync android
+
+      - name: Release key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Missing ANDROID_KEYSTORE_BASE64 secret. Run scripts/setup-android-signing.ps1 once."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Gradle assembleRelease
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MAJOR: ${{ needs.release.outputs.major }}
+          MINOR: ${{ needs.release.outputs.minor }}
+          PATCH: ${{ needs.release.outputs.patch }}
+        # 1.2.3 -> 1002003: always grows with the version, fits Android's int limit.
+        run: ./gradlew assembleRelease --no-daemon -PversionName="$VERSION" -PversionCode="$((MAJOR * 1000000 + MINOR * 1000 + PATCH))"
+
+      - name: Verify signature
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          "$APKSIGNER" verify --print-certs "$APK"
+          cp "$APK" traffix.apk
+          sha256sum traffix.apk > traffix.apk.sha256
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$TAG" traffix.apk traffix.apk.sha256 --clobber
+
+      - name: Clean up key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
