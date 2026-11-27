@@ -23,6 +23,14 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Traffix",
   description: "Numără mașinile pe mărci: apeși pe marcă și crește numărul.",
+  // Icons live in public/ and are generated from docs/brand by scripts/make-icons.sh.
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

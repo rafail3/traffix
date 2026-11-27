@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/brand/traffix-logo.svg" alt="" width="112" height="112">
+
 # Traffix
 
 A small game for car trips: count the cars you see, by brand.

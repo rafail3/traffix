@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Traffix</title>
+  <defs><clipPath id="c"><rect width="1024" height="1024" rx="200"/></clipPath>
+    <radialGradient id="glow" cx="512" cy="528" r="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3f6cff" stop-opacity=".62"/>
+      <stop offset=".34" stop-color="#1d3f9a" stop-opacity=".5"/>
+      <stop offset=".68" stop-color="#0f1d45" stop-opacity=".25"/>
+      <stop offset="1" stop-color="#08090b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="512" cy="500" r="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbd03a" stop-opacity=".16"/><stop offset="1" stop-color="#fbd03a" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="backlight" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="42"/></filter>
+    <filter id="drop" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter>
+    <linearGradient id="face" x1="0" y1="236" x2="0" y2="812" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5dce8"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="190" y1="0" x2="407" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f5a524"/><stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <g id="bar"><rect x="190" y="236" width="644" height="150" rx="16"/></g>
+    <g id="stem"><rect x="427" y="406" width="170" height="406" rx="16"/></g>
+    <g id="strip"><rect x="190" y="406" width="217" height="40" rx="10"/></g>
+  </defs>
+  <g clip-path="url(#c)">
+  <rect width="1024" height="1024" fill="#08090b"/>
+  <circle cx="512" cy="528" r="500" fill="url(#glow)"/>
+  <circle cx="512" cy="500" r="300" fill="url(#core)"/>
+  <g transform="translate(512 512) scale(0.9) translate(-512 -512)">
+  <g transform="translate(512 524) skewX(-10) translate(-512 -524)">
+    <g fill="#4d78ff" opacity=".55" filter="url(#backlight)"><use href="#bar"/><use href="#stem"/></g>
+    <g fill="#000" opacity=".55" filter="url(#drop)" transform="translate(0 22)"><use href="#bar"/><use href="#stem"/><use href="#strip"/></g>
+    <g fill="url(#face)"><use href="#bar"/><use href="#stem"/></g>
+    <rect x="198" y="238" width="628" height="4" rx="2" fill="#ffffff" opacity=".9"/>
+    <use href="#strip" fill="url(#amber)"/>
+  </g>
+  </g>
+  </g>
+</svg>

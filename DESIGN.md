@@ -96,6 +96,17 @@ Plate 6px. Small controls 8px, buttons 10px, panels and the list 14px. The minus
 
 Last item in the app menu while a newer APK is waiting: accent-tinted surface, an up-arrow icon, "Actualizare disponibilă" with old → new version in mono, and one primary "Instalează" button. A small accent dot on the burger points to it. It stays until the update is installed.
 
+### Logo
+
+A forward-leaning white T on near-black, its top bar and stem split by a thin gap, with one amber light strip under the left of the bar and a deep-blue glow behind. The sources are in `docs/brand/`, one per use, and `scripts/make-icons.sh` renders every size from them:
+
+- `traffix-logo.svg`: the full logo (Apple touch icon, splash screen).
+- `traffix-mark.svg`: favicon and the header mark. No blur, bigger T, flat blue tile, so it still reads at 16px.
+- `traffix-adaptive-foreground.svg`: Android adaptive icon foreground, inside the safe zone, on `#08090b`.
+- `traffix-legacy-round.svg`, `traffix-legacy-square.svg`: launchers older than Android 8.
+
+Edit the SVGs, never the PNGs.
+
 ### The plate
 
 The total in the header: 2px dark border, 6px radius, blue `RO` strip on the left, the number in JetBrains Mono. It stays small; it's a badge, not a hero number.

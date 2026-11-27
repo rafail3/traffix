@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Traffix</title>
+  <defs>
+    <radialGradient id="tile" cx="512" cy="560" r="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2346b8"/><stop offset=".55" stop-color="#132a6b"/><stop offset="1" stop-color="#0a0d16"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="236" x2="0" y2="812" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5dce8"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="190" y1="0" x2="407" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f5a524"/><stop offset="1" stop-color="#ffd84a"/>
+    </linearGradient>
+    <g id="bar"><rect x="190" y="236" width="644" height="150" rx="16"/></g>
+    <g id="stem"><rect x="427" y="406" width="170" height="406" rx="16"/></g>
+    <g id="strip"><rect x="190" y="406" width="217" height="40" rx="10"/></g>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#tile)"/>
+  <g transform="translate(512 512) scale(1.12) translate(-512 -512)">
+  <g transform="translate(512 524) skewX(-10) translate(-512 -524)">
+    <g fill="url(#face)"><use href="#bar"/><use href="#stem"/></g>
+    <use href="#strip" fill="url(#amber)"/>
+  </g>
+  </g>
+</svg>

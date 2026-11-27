@@ -336,7 +336,7 @@ export default function Traffix() {
     <div className="page">
     <main className="wrap">
       <header className="topbar">
-        <h1 className="brand">Traffix</h1>
+        <h1 className="brand"><img className="brand-mark" src="/logo.svg" alt="" width={32} height={32} />Traffix</h1>
         <button
           className="icon-btn burger"
           type="button"
@@ -553,7 +553,7 @@ export default function Traffix() {
         onClick={(e) => { if (e.target === e.currentTarget) menuDlg.current?.close(); }}
       >
         <div className="sheet-head">
-          <span className="brand">Traffix</span>
+          <span className="brand"><img className="brand-mark" src="/logo.svg" alt="" width={32} height={32} />Traffix</span>
           <button className="icon-btn" type="button" aria-label="Închide meniul" onClick={() => menuDlg.current?.close()}>
             <X size={22} weight="bold" aria-hidden="true" />
           </button>
