@@ -43,3 +43,6 @@ next-env.d.ts
 # android signing keys
 *.jks
 *.keystore
+
+# internal notes, kept local only
+docs/HANDOVER.md
