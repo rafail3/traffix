@@ -28,7 +28,7 @@ You start with the car brands you see most often in Romania and the rest of Euro
 
 After a few saved games the list starts in a different order: the brands you see most on your routes move up. Nothing gets removed, and you can still add, delete or drag brands around yourself.
 
-There are no accounts for now. Everything is kept on your device, and the Android app works offline.
+Accounts are optional. Without one, everything stays on your device and the Android app works offline. With one (just a username and a password, plus a recovery code in case you forget it), your brand list and saved games follow you to any phone or laptop.
 
 ## Running it locally
 
@@ -36,9 +36,11 @@ You need Node 26 or newer.
 
 ```bash
 npm ci
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:3100
 npm test
 ```
+
+The game itself runs without any setup. Accounts need the Postgres database from the Vercel project: `vercel env pull` writes `.env.local`, and `npx auth@latest migrate --config lib/auth.config.ts` creates or updates the tables.
 
 ## Under the hood
 
