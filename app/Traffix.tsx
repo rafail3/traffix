@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
 import {
   ArrowCounterClockwise, ArrowLeft, Check, CheckCircle, ClockCounterClockwise, FloppyDisk,
@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+import { AccountDialog, AccountPanel, useAccount } from "./Account";
 import { AndroidCard, useLatestApk } from "./AndroidDownload";
 import { UpdateBar, UpdateDialog, useAppUpdate } from "./AppUpdate";
 import { GitHubCard } from "./GitHubCard";
@@ -106,6 +107,13 @@ export default function Traffix() {
   useEffect(() => {
     if (items && profile.current) saveProfile({ ...profile.current, rows: items, games });
   }, [items, games]);
+
+  // Optional account: the same list and games, kept in the cloud as well.
+  const cloud = useMemo(
+    () => (items ? { rows: items.filter((r) => r.name.trim()).map(({ name, n }) => ({ name, n })), games } : null),
+    [items, games],
+  );
+  const acc = useAccount(cloud, (d) => { setItems(d.rows.map(withId)); setGames(d.games); });
 
   useLayoutEffect(() => {
     if (!focusEditId.current) return;
@@ -539,6 +547,7 @@ export default function Traffix() {
 
       {apk.status !== "native" && (
         <aside className="side">
+          <AccountPanel acc={acc} id="acc-side-title" savedGames={games.length} />
           <AndroidCard apk={apk} qr />
           <GitHubCard id="gh-card-title" />
         </aside>
@@ -558,6 +567,7 @@ export default function Traffix() {
             <X size={22} weight="bold" aria-hidden="true" />
           </button>
         </div>
+        <AccountPanel acc={acc} id="acc-sheet-title" savedGames={games.length} />
         {apk.status !== "native" && <AndroidCard apk={apk} />}
         <GitHubCard id="gh-sheet-title" />
         <UpdateBar u={upd} onInstall={() => { menuDlg.current?.close(); upd.install(); }} />
@@ -588,6 +598,7 @@ export default function Traffix() {
       </dialog>
 
       <UpdateDialog u={upd} />
+      <AccountDialog acc={acc} />
     </>
   );
 }

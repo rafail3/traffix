@@ -11,12 +11,17 @@ const APK_HEADERS = [
   { key: "Cache-Control", value: "public, max-age=300" },
 ];
 
+// Server-only routes (the account API) are named route.api.ts: the Vercel build picks them up,
+// the static export for the APK doesn't see them, so it stays a plain offline bundle.
+const SERVER = { pageExtensions: ["tsx", "ts", "jsx", "js", "api.ts"] };
+
 // The Android app ships the site as static files (out/). Vercel keeps the normal build, which
 // also serves /download: the APK file itself, straight from our domain, named traffix-vX.Y.Z.apk.
 const nextConfig: NextConfig = process.env.STATIC_EXPORT
   ? { output: "export" }
   : apk
     ? {
+        ...SERVER,
         async rewrites() {
           return [{ source: "/download", destination: `/apk/${apk.file}` }];
         },
@@ -31,6 +36,7 @@ const nextConfig: NextConfig = process.env.STATIC_EXPORT
         },
       }
     : {
+        ...SERVER,
         // No local copy (local dev, or GitHub was unreachable at build time).
         async redirects() {
           return [

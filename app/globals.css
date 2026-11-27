@@ -295,6 +295,26 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
   transition: color .15s, text-decoration-color .15s;
 }
 .panel-link:hover { color: var(--fg); text-decoration-color: currentColor; }
+.panel-actions { display: grid; gap: 8px; }
+.panel-actions .btn { justify-content: center; }
+.sync-line { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .85rem; color: var(--muted); }
+.sync-line svg { flex: none; color: var(--accent); }
+.sync-line.offline svg { color: var(--danger); }
+
+/* account dialog */
+.field-hint { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.dlg input.mono { font-family: var(--f-num); letter-spacing: .06em; text-transform: uppercase; }
+.dlg-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+.link-btn {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none;
+  font: 500 .85rem var(--f-body); color: var(--accent); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.link-btn:hover { text-decoration-color: currentColor; }
+.recovery-code {
+  display: block; padding: 16px; border: 1px dashed var(--line); border-radius: var(--r-m); background: var(--bg);
+  font: 700 1.25rem var(--f-num); letter-spacing: .08em; text-align: center; user-select: all; overflow-wrap: anywhere;
+}
 .panel-meta { margin: 0; font: 500 .78rem var(--f-num); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
