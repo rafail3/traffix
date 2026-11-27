@@ -57,7 +57,7 @@ button, a { touch-action: manipulation; }
 @media (min-width: 1200px) {
   .page { grid-template-columns: 1fr minmax(0, 560px) 1fr; }
   .wrap { grid-column: 2; }
-  .side { display: block; grid-column: 3; justify-self: start; width: 300px; position: sticky; top: 24px; align-self: start; }
+  .side { display: grid; gap: 16px; grid-column: 3; justify-self: start; width: 300px; position: sticky; top: 24px; align-self: start; }
   .topbar .burger { display: none; }
 }
 
@@ -194,7 +194,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .row.new input:focus-visible { outline: none; }
 
 /* ---- history ---- */
-h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.4rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.4rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
 .history { display: grid; gap: 16px; }
 .empty { color: var(--muted); margin: 0; }
 ol.games { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); overflow: hidden; }
@@ -238,23 +238,36 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
 }
 .sheet[open] { display: grid; align-content: start; gap: 20px; padding: calc(12px + var(--safe-top)) 20px calc(24px + var(--safe-bottom)); animation: sheet-in .22s cubic-bezier(.2, .8, .2, 1); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
-.sheet .app-card { border: 0; padding: 0; background: none; box-shadow: none; }
+.sheet .panel { border: 0; border-radius: 0; padding: 0; background: none; box-shadow: none; }
+.sheet .panel + .panel { border-top: 1px solid var(--line); padding-top: 20px; }
 @keyframes sheet-in { from { transform: translateX(24px); opacity: 0; } }
 
 /* ---- Android app card ---- */
-.app-card {
+.panel {
   display: grid; gap: 14px; padding: 20px; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--shadow);
 }
-.app-card-head { display: flex; align-items: center; gap: 10px; }
-.app-card-icon { color: #3ddc84; flex: none; }
-.app-card-text { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
-.app-card-qr { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; }
-.app-card-qr p { margin: 0; font-size: .85rem; line-height: 1.45; }
+.panel-head { display: flex; align-items: center; gap: 10px; }
+.panel-icon { flex: none; color: var(--fg); }
+.panel-icon.android { color: #3ddc84; } /* Android's own green, per its brand guidelines */
+.panel-text { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+.panel-qr { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; }
+.panel-qr p { margin: 0; font-size: .85rem; line-height: 1.45; }
 .qr { background: #fff; padding: 8px; border-radius: var(--r-s); border: 1px solid var(--line); aspect-ratio: 1; }
 .qr svg { display: block; width: 100%; height: auto; }
-.app-card-note { margin: 0; font-size: .85rem; color: var(--muted); line-height: 1.5; }
-.app-card-meta { margin: 0; font: 500 .78rem var(--f-num); color: var(--muted); font-variant-numeric: tabular-nums; }
+.panel-note { margin: 0; font-size: .85rem; color: var(--muted); line-height: 1.5; }
+.star-count {
+  margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--bg);
+  font: 600 .78rem var(--f-num); font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.panel-link {
+  justify-self: center; font-size: .85rem; font-weight: 500; color: var(--muted);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line);
+  display: inline-flex; align-items: center; min-height: 44px; margin: -8px 0; padding: 0 8px;
+  transition: color .15s, text-decoration-color .15s;
+}
+.panel-link:hover { color: var(--fg); text-decoration-color: currentColor; }
+.panel-meta { margin: 0; font: 500 .78rem var(--f-num); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
   .count, .btn { transition: none; }
