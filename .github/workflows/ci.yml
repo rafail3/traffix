@@ -1,9 +1,11 @@
 name: CI
 
+# Runs on pull requests only. A PR can be merged only when it is up to date with main
+# (ruleset: strict status checks), so what passed here is exactly what lands on main
+# and there is nothing new to check after the merge. Run it by hand if ever needed.
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
