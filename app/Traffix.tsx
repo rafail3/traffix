@@ -9,6 +9,7 @@ import {
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { AndroidCard, useLatestApk } from "./AndroidDownload";
+import { GitHubCard } from "./GitHubCard";
 import { DEFAULT_BRANDS } from "@/lib/brands";
 import { rankBrands, type Game } from "@/lib/rank";
 import { loadProfile, saveProfile, type Item, type Profile } from "@/lib/storage";
@@ -537,6 +538,7 @@ export default function Traffix() {
       {apk.status !== "native" && (
         <aside className="side">
           <AndroidCard apk={apk} qr />
+          <GitHubCard id="gh-card-title" />
         </aside>
       )}
     </div>
@@ -555,6 +557,7 @@ export default function Traffix() {
           </button>
         </div>
         <AndroidCard apk={apk} />
+        <GitHubCard id="gh-sheet-title" />
       </dialog>
 
       <dialog ref={saveDlg} className="dlg" aria-labelledby="save-title">

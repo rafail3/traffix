@@ -1,12 +1,15 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { AndroidLogo, DownloadSimple } from "@phosphor-icons/react";
+import { DownloadSimple } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import { siAndroid } from "simple-icons";
+import { Mark } from "./Mark";
 
 const REPO = "rafail3/traffix";
-// Stable link: GitHub always redirects it to the newest release's APK.
-const APK_URL = `https://github.com/${REPO}/releases/latest/download/traffix.apk`;
+// Our own short link: next.config.ts redirects /download to the newest release's APK, so the
+// QR and the button start the download right away and never show a GitHub page.
+const DOWNLOAD_PATH = "/download";
 
 export type Apk =
   | { status: "loading" | "none" | "native" }
@@ -43,7 +46,7 @@ function Qr() {
   const [svg, setSvg] = useState("");
   useEffect(() => {
     import("qrcode").then((q) =>
-      q.toString(APK_URL, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#16191d", light: "#ffffff" } }),
+      q.toString(location.origin + DOWNLOAD_PATH, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#16191d", light: "#ffffff" } }),
     ).then(setSvg, () => {});
   }, []);
   return <div className="qr" role="img" aria-label="Cod QR care descarcă aplicația" dangerouslySetInnerHTML={{ __html: svg }} />;
@@ -53,28 +56,28 @@ function Qr() {
 export function AndroidCard({ apk, qr = false }: { apk: Apk; qr?: boolean }) {
   const ready = apk.status === "ready";
   return (
-    <section className="app-card" aria-labelledby={qr ? "app-card-title" : "app-sheet-title"}>
-      <div className="app-card-head">
-        <AndroidLogo size={28} weight="fill" aria-hidden="true" className="app-card-icon" />
+    <section className="panel" aria-labelledby={qr ? "app-card-title" : "app-sheet-title"}>
+      <div className="panel-head">
+        <Mark icon={siAndroid} size={26} className="panel-icon android" />
         <h2 id={qr ? "app-card-title" : "app-sheet-title"}>Traffix pe Android</h2>
       </div>
-      <p className="app-card-text">Aplicația merge și fără internet: numeri pe drum, salvezi jocul și îl vezi apoi în istoric.</p>
+      <p className="panel-text">Aplicația merge și fără internet: numeri pe drum, salvezi jocul și îl vezi apoi în istoric.</p>
       {qr && ready && (
-        <div className="app-card-qr">
+        <div className="panel-qr">
           <Qr />
           <p>Scanează cu telefonul ca să descarci aplicația.</p>
         </div>
       )}
       {ready ? (
         <>
-          <a className="btn primary block" href={APK_URL}>
+          <a className="btn primary block" href={DOWNLOAD_PATH}>
             <DownloadSimple size={18} weight="bold" aria-hidden="true" />
             Descarcă APK
           </a>
-          <p className="app-card-meta">{apk.version} · {apk.mb}&nbsp;MB · Android 7 sau mai nou</p>
+          <p className="panel-meta">{apk.version} · {apk.mb}&nbsp;MB · Android 7 sau mai nou</p>
         </>
       ) : (
-        <p className="app-card-note">
+        <p className="panel-note">
           {apk.status === "loading" ? "Caut ultima versiune…" : "Prima versiune se construiește acum. Revino în câteva minute."}
         </p>
       )}
