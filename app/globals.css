@@ -304,7 +304,7 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
 
 /* account dialog */
 .field-hint { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
-.field-hint.good { color: var(--muted); }
+.field-hint.good { color: var(--fg); font-weight: 600; }
 .field-hint.bad { color: var(--danger); font-weight: 600; }
 .dlg .field-err { margin-top: -4px; }
 .dlg .form-err { margin-top: 2px; }

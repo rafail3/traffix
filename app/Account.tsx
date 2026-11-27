@@ -315,7 +315,7 @@ function useUsernameCheck(mode: Mode | null, username: string) {
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setState(d?.available === false ? "taken" : d?.available ? "free" : ""))
         .catch(() => setState(""));
-    }, 350);
+    }, 200);
     return () => { clearTimeout(t); ctrl.abort(); };
   }, [mode, username]);
   return state;
@@ -432,9 +432,9 @@ export function AccountDialog({ acc }: { acc: Account }) {
                 onChange={(e) => change("username", e.target.value)} onBlur={() => blur("username")}
               />
               {err("username")}
-              {mode === "signup" && !errors.username && nameState && nameState !== "checking" && (
-                <p id="acc-username-state" className={`field-hint ${nameState === "taken" ? "bad" : "good"}`} aria-live="polite">
-                  {nameState === "taken" ? TAKEN : "Numele e liber."}
+              {mode === "signup" && !errors.username && nameState && (
+                <p id="acc-username-state" className={`field-hint ${nameState === "taken" ? "bad" : nameState === "free" ? "good" : ""}`} aria-live="polite">
+                  {nameState === "taken" ? TAKEN : nameState === "free" ? "Numele e liber." : "Verific numele…"}
                 </p>
               )}
 
