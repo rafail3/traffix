@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you got instead.
+      placeholder: I saved a game, reopened the app and the history was empty.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where?
+      options:
+        - Website on a laptop
+        - Website on a phone
+        - Android app
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown under the download button, or in Android settings for the app.
+      placeholder: v1.0.0
+  - type: textarea
+    id: screens
+    attributes:
+      label: Screenshots
+      description: Optional. Drag images here.
