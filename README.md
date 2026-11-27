@@ -30,7 +30,7 @@ There are no accounts for now. Everything is kept on your device, and the Androi
 
 ## Running it locally
 
-You need Node 24 or newer.
+You need Node 26 or newer.
 
 ```bash
 npm ci
