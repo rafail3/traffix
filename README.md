@@ -2,60 +2,55 @@
 
 # Traffix
 
-**Count the cars you pass, brand by brand.**<br>
-Tap a brand, the number goes up. Save the game, and next time the brands you see most are already on top.
+A small game for car trips: count the cars you see, by brand.
 
 [![CI](https://github.com/rafail3/traffix/actions/workflows/ci.yml/badge.svg)](https://github.com/rafail3/traffix/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/rafail3/traffix?label=release&color=1d3f9a)](https://github.com/rafail3/traffix/releases/latest)
 [![Android 7+](https://img.shields.io/badge/android-7%2B-1d3f9a?logo=android&logoColor=white)](https://github.com/rafail3/traffix/releases/latest/download/traffix.apk)
 
-[**Open the web app**](https://traffix-rafa.vercel.app) · [**Download the APK**](https://github.com/rafail3/traffix/releases/latest/download/traffix.apk) · [Contribute](CONTRIBUTING.md)
+[**Web app**](https://traffix-rafa.vercel.app) · [**Android APK**](https://github.com/rafail3/traffix/releases/latest/download/traffix.apk) · [Contributing](CONTRIBUTING.md)
 
 <br>
 
-<img src="docs/screens/desktop.png" alt="Traffix on a laptop: the brand list with counts, and the Android download card on the right" width="72%">
+<img src="docs/screens/desktop.png" alt="Traffix on a laptop, with the Android download card on the right" width="72%">
 &nbsp;
-<img src="docs/screens/phone.png" alt="Traffix on a phone: the same brand list in one column" width="24.6%">
+<img src="docs/screens/phone.png" alt="Traffix on a phone" width="24.6%">
 
 </div>
 
 <br>
 
-## What it does
+## About
 
-- **Count.** One tap per car. Long-press and drag to reorder; edit the list any time.
-- **Save.** Name a game and keep it. Every saved game stays in your history.
-- **Learn.** The list re-orders itself from your saved games. No brand ever disappears; only the order changes.
-- **Offline.** Everything stays on your device. The Android app works without internet.
+You start with the car brands you see most often in Romania and the rest of Europe. Every time one drives by, you tap it. When the trip is over you save the game, give it a name if you want, and it goes into your history.
 
-## Run it locally
+After a few saved games the list starts in a different order: the brands you see most on your routes move up. Nothing gets removed, and you can still add, delete or drag brands around yourself.
 
-Requires Node 24 or newer.
+There are no accounts for now. Everything is kept on your device, and the Android app works offline.
+
+## Running it locally
+
+You need Node 24 or newer.
 
 ```bash
 npm ci
 npm run dev      # http://localhost:3000
-npm test         # ranking tests
+npm test
 ```
 
-## How it is built
+## Under the hood
 
-| Part | Built with |
-| --- | --- |
-| App | [Next.js](https://nextjs.org) + React, plain CSS |
-| Android | The same app packaged with [Capacitor](https://capacitorjs.com) |
-| Storage | `localStorage`, one profile per device |
-| Ranking | A Bradley–Terry style model over saved games, recent games weigh more (`lib/rank.ts`) |
-| Releases | [semantic-release](https://semantic-release.gitbook.io) from pull request titles; each release ships a signed APK |
+Next.js and React, with plain CSS. The Android app is the same build wrapped with [Capacitor](https://capacitorjs.com), so there is only one codebase. The ordering of the list lives in `lib/rank.ts` (a Bradley–Terry style model where recent games count more) and has tests next to it.
+
+Releases are automatic: [semantic-release](https://semantic-release.gitbook.io) reads the pull request titles merged into `main`, picks the next version and publishes it together with a signed APK.
 
 ```text
 app/        screens and styles
-lib/        brands, ranking, storage (with tests)
-android/    Capacitor Android project
-.github/    CI, release and pull request checks
+lib/        brand list, ranking, storage
+android/    Capacitor project
+.github/    CI and release workflows
 ```
 
 ## Contributing
 
-Pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); it takes two minutes to read.
-Found a security issue? Please report it privately, see [SECURITY.md](SECURITY.md).
+Pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). If you found a security problem, please don't open an issue; [SECURITY.md](SECURITY.md) explains how to report it.

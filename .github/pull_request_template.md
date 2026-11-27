@@ -1,9 +1,9 @@
-## What and why
+## What changed
 
-<!-- Short description of the change. -->
+<!-- A couple of sentences: what you changed and why. -->
 
-## Checklist
+## Checks
 
-- [ ] Title follows Conventional Commits (`feat: …`, `fix: …`); `web` scope if it changes only the website, not the app
+- [ ] Title follows Conventional Commits (`web` scope if it only changes the website)
 - [ ] `npx tsc --noEmit`, `npm test` and `npm run build` pass
 - [ ] No secrets, keys or `.env` files

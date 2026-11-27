@@ -1,5 +1,5 @@
-# Security policy
+# Security
 
-Please report vulnerabilities privately through GitHub: **Security → Report a vulnerability** on this repository. Do not open a public issue.
+If you find a vulnerability, please report it privately: on this repository go to **Security → Report a vulnerability**. Don't open a public issue for it.
 
-You will get an answer within a few days. Only the latest release is supported.
+I'll get back to you within a few days. Only the latest release gets fixes.
