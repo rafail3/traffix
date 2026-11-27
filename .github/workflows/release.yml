@@ -2,8 +2,14 @@ name: Release
 
 # Every push to main: semantic-release reads the commits since the last tag and, if
 # any of them is a feat/fix/perf (or breaking), tags vX.Y.Z and creates a GitHub
-# Release. Each new release then gets a freshly built, signed APK attached; the site's
-# download button always points at the latest one.
+# Release. Each release then gets a signed APK attached; the site's download button
+# always points at the latest one.
+#
+# Web-only changes skip the Android build: when every release-worthy commit since the
+# last release is scoped `web` (e.g. `feat(web): side card on laptop`), the new release
+# gets the previous release's APK copied over instead of a rebuild. Anything else,
+# scope missing included, builds a fresh APK, so forgetting the scope never ships a
+# stale app.
 on:
   push:
     branches: [main]
@@ -26,6 +32,8 @@ jobs:
       major: ${{ steps.semrel.outputs.new_release_major_version }}
       minor: ${{ steps.semrel.outputs.new_release_minor_version }}
       patch: ${{ steps.semrel.outputs.new_release_patch_version }}
+      last_tag: ${{ steps.semrel.outputs.last_release_git_tag }}
+      apk: ${{ steps.apk.outputs.mode }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,10 +50,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build or reuse the APK?
+        id: apk
+        if: steps.semrel.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LAST_HEAD: ${{ steps.semrel.outputs.last_release_git_head }}
+          LAST_TAG: ${{ steps.semrel.outputs.last_release_git_tag }}
+        run: |
+          mode=build
+          if [ -n "$LAST_TAG" ] && gh release view "$LAST_TAG" --json assets -q '.assets[].name' | grep -qx traffix.apk; then
+            # Release-worthy commits (feat/fix/perf/refactor/revert or breaking) not scoped `web`.
+            app=$(git log --format=%s "$LAST_HEAD..HEAD" |
+              grep -E '^(feat|fix|perf|refactor|revert)(\([^)]*\))?!?:|^[a-z]+(\([^)]*\))?!:' |
+              grep -vE '^[a-z]+\(web\)!?:' || true)
+            [ -z "$app" ] && mode=reuse
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "APK: $mode" >> "$GITHUB_STEP_SUMMARY"
+
+  apk-reuse:
+    name: Same APK (web-only release)
+    needs: release
+    if: needs.release.outputs.apk == 'reuse'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: v${{ needs.release.outputs.version }}
+      LAST_TAG: ${{ needs.release.outputs.last_tag }}
+    steps:
+      - name: Copy the APK from the previous release
+        run: |
+          gh release download "$LAST_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'traffix.apk*'
+          sha256sum -c traffix.apk.sha256
+          gh release upload "$TAG" traffix.apk traffix.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+
   apk:
     name: Signed APK
     needs: release
-    if: needs.release.outputs.published == 'true'
+    if: needs.release.outputs.apk == 'build'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
