@@ -30,11 +30,17 @@ export function GitHubCard({ id }: { id: string }) {
         <h2 id={id}>Traffix e open source</h2>
       </div>
       <p className="panel-text">Dacă îți place jocul, lasă-i o stea pe GitHub. Codul e public, deci poți veni și cu idei sau cu îmbunătățiri.</p>
-      <a className="btn block star-btn" href={REPO_URL} target="_blank" rel="noopener">
+      <a
+        className="btn block"
+        href={REPO_URL}
+        target="_blank"
+        rel="noopener"
+        aria-label={stars === null ? undefined : `Dă o stea pe GitHub, ${stars} ${stars === 1 ? "stea" : "stele"} până acum`}
+      >
         <Star size={18} weight="bold" aria-hidden="true" />
         Dă o stea pe GitHub
         {stars !== null && (
-          <span className="star-count" aria-label={`${stars} ${stars === 1 ? "stea" : "stele"} până acum`}>{stars}</span>
+          <span className="star-count" aria-hidden="true">{stars}</span>
         )}
       </a>
       <a className="panel-link" href={`${REPO_URL}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noopener">

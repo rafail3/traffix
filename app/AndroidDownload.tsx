@@ -74,7 +74,7 @@ export function AndroidCard({ apk, qr = false }: { apk: Apk; qr?: boolean }) {
             <DownloadSimple size={18} weight="bold" aria-hidden="true" />
             Descarcă APK
           </a>
-          <p className="panel-meta">{apk.version} · {apk.mb}&nbsp;MB · Android 7 sau mai nou</p>
+          <p className="panel-meta">{apk.version} · {apk.mb}&nbsp;MB · Android 7+</p>
         </>
       ) : (
         <p className="panel-note">

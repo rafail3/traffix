@@ -194,7 +194,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .row.new input:focus-visible { outline: none; }
 
 /* ---- history ---- */
-h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.4rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.4rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
 .history { display: grid; gap: 16px; }
 .empty { color: var(--muted); margin: 0; }
 ol.games { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-l); overflow: hidden; }
@@ -238,7 +238,7 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
 }
 .sheet[open] { display: grid; align-content: start; gap: 20px; padding: calc(12px + var(--safe-top)) 20px calc(24px + var(--safe-bottom)); animation: sheet-in .22s cubic-bezier(.2, .8, .2, 1); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
-.sheet .panel { border: 0; padding: 0; background: none; box-shadow: none; }
+.sheet .panel { border: 0; border-radius: 0; padding: 0; background: none; box-shadow: none; }
 .sheet .panel + .panel { border-top: 1px solid var(--line); padding-top: 20px; }
 @keyframes sheet-in { from { transform: translateX(24px); opacity: 0; } }
 
