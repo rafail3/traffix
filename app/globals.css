@@ -51,8 +51,8 @@ button, a { touch-action: manipulation; }
 ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 
 /* ---- page frame: one centred column; on wide screens the app card sits in the free space ---- */
-.page { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; column-gap: 40px; }
-.wrap { display: grid; gap: 16px; min-width: 0; }
+.page { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; align-items: start; column-gap: 40px; }
+.wrap { display: grid; gap: 16px; min-width: 0; align-content: start; }
 .side { display: none; }
 @media (min-width: 1200px) {
   .page { grid-template-columns: 1fr minmax(0, 560px) 1fr; }
@@ -304,6 +304,18 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
 
 /* account dialog */
 .field-hint { margin: -4px 0 0; font-size: .8rem; color: var(--muted); }
+.field-hint.good { color: var(--fg); font-weight: 600; }
+.field-hint.bad { color: var(--danger); font-weight: 600; }
+.dlg .field-err { margin-top: -4px; }
+.dlg .form-err { margin-top: 2px; }
+/* password with a show/hide button inside the field */
+.pw { position: relative; }
+.pw input { width: 100%; padding-right: 52px; }
+.pw-toggle {
+  position: absolute; top: 0; right: 0; width: 48px; height: 100%; display: grid; place-items: center;
+  border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 0 var(--r-s) var(--r-s) 0;
+}
+.pw-toggle:hover, .pw-toggle[aria-pressed="true"] { color: var(--fg); }
 .dlg input.mono { font-family: var(--f-num); letter-spacing: .06em; text-transform: uppercase; }
 .dlg-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
 .link-btn {

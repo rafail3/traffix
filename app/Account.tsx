@@ -2,41 +2,55 @@
 
 import { Capacitor } from "@capacitor/core";
 import {
-  CheckCircle, CloudArrowUp, CloudCheck, CloudSlash, Copy, Key, SignIn, SignOut, UserCircle, UserPlus,
+  CheckCircle, CloudArrowUp, CloudCheck, CloudSlash, Copy, Eye, EyeSlash, Key, SignIn, SignOut, UserCircle, UserPlus,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { MIN_PASSWORD, USERNAME_RE, normalizeUsername, placeholderEmail } from "@/lib/account";
+import {
+  fieldError, formatRecoveryCode, normalizeUsername, placeholderEmail, USERNAME_RE, MIN_PASSWORD,
+  type Field, type FormMode,
+} from "@/lib/account";
 import { mergeProfiles, type CloudData } from "@/lib/sync";
 
 // The site calls its own API; the Android app (no server inside) calls the live site.
 const API = typeof window !== "undefined" && Capacitor.isNativePlatform() ? "https://traffix-rafa.vercel.app" : "";
-const TOKEN_KEY = "traffix-auth-v1";
+const STORE_KEY = "traffix-auth-v2"; // { token, user }: the user is kept so the panel shows up instantly
+const UPLOAD_DELAY = 600;
+const POLL_MS = 15_000; // pick up changes made on other devices while this one is open
 
 type User = { id: string; username: string; displayUsername?: string; createdAt: string };
-type Mode = "signin" | "signup" | "recover" | "code";
+type Mode = FormMode | "code";
 type Sync = "idle" | "saving" | "saved" | "offline";
+type Stored = { token: string; user: User };
 
-const readToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
-const writeToken = (t: string | null) => {
-  try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch {}
+const readStore = (): Stored | null => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null");
+    if (stored) return stored;
+    // First version kept only the token: carry it over, the user is fetched on start.
+    const legacy = localStorage.getItem("traffix-auth-v1");
+    return legacy ? { token: legacy, user: null as unknown as User } : null;
+  } catch { return null; }
+};
+const writeStore = (s: Stored | null) => {
+  try { if (s) localStorage.setItem(STORE_KEY, JSON.stringify(s)); else localStorage.removeItem(STORE_KEY); } catch {}
 };
 
 // Better Auth answers with codes; these are the ones a person can run into.
+const TAKEN = "Numele ăsta e deja luat. Alege altul.";
 const messages: Record<string, string> = {
-  USERNAME_IS_ALREADY_TAKEN: "Numele ăsta e deja luat. Alege altul.",
-  USERNAME_IS_ALREADY_TAKEN_PLEASE_TRY_ANOTHER: "Numele ăsta e deja luat. Alege altul.",
-  USER_ALREADY_EXISTS: "Numele ăsta e deja luat. Alege altul.",
-  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Numele ăsta e deja luat. Alege altul.",
+  USERNAME_IS_ALREADY_TAKEN: TAKEN,
+  USERNAME_IS_ALREADY_TAKEN_PLEASE_TRY_ANOTHER: TAKEN,
+  USER_ALREADY_EXISTS: TAKEN,
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: TAKEN,
   INVALID_USERNAME_OR_PASSWORD: "Numele de utilizator sau parola nu e corectă.",
-  INVALID_USERNAME: "Numele poate avea doar litere mici, cifre, punct și _.",
+  INVALID_USERNAME: "Numele poate avea doar litere, cifre, punct și _.",
   USERNAME_TOO_SHORT: "Numele trebuie să aibă cel puțin 3 caractere.",
   USERNAME_TOO_LONG: "Numele poate avea cel mult 20 de caractere.",
   PASSWORD_TOO_SHORT: `Parola trebuie să aibă cel puțin ${MIN_PASSWORD} caractere.`,
 };
 const OFFLINE = "Nu mă pot conecta la server. Verifică internetul și încearcă din nou.";
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<{ data: T; token: string | null }> {
-  const token = readToken();
+async function call<T>(path: string, init: RequestInit = {}, token = readStore()?.token): Promise<{ data: T; token: string | null }> {
   let res: Response;
   try {
     res = await fetch(API + path, {
@@ -47,83 +61,123 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<{ data: T;
     throw new Error(OFFLINE);
   }
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(messages[data?.code] ?? data?.error ?? "Ceva n-a mers. Încearcă din nou.");
+  if (!res.ok) throw Object.assign(new Error(messages[data?.code] ?? data?.error ?? "Ceva n-a mers. Încearcă din nou."), { status: res.status });
   return { data, token: res.headers.get("set-auth-token") ?? data?.token ?? null };
 }
+
+const same = (a: CloudData, b: CloudData) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * The optional account: sign up / in / out, the recovery code, and keeping the brand list and saved
  * games in the cloud. Without an account the game works exactly as before, on this device only.
  */
 export function useAccount(local: CloudData | null, apply: (d: CloudData) => void) {
+  // Starts from what this device remembers, so nothing waits for the network.
   const [user, setUser] = useState<User | null>(null);
-  const [checked, setChecked] = useState(false);
+  const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<Mode | null>(null);
   const [code, setCode] = useState("");
   const [sync, setSync] = useState<Sync>("idle");
   const [retry, setRetry] = useState(0);
-  const pulled = useRef(false);
+  const pulled = useRef(false); // the account's copy has been merged in at least once
+  const dirty = useRef(false); // local changes not uploaded yet
+  const busy = useRef(false);
   const localRef = useRef(local);
   localRef.current = local;
   const applyRef = useRef(apply);
   applyRef.current = apply;
+  const lastSent = useRef<string>("");
 
-  // Merge the account's copy into this device. Applying it changes the local data, and the
-  // upload effect below then sends the merged result back.
-  const pulling = useRef(false);
-  const pull = useCallback(async () => {
-    const mine = localRef.current;
-    if (!mine || pulling.current) return;
-    pulling.current = true;
-    try {
-      const { data } = await call<{ data: CloudData | null }>("/api/profile");
-      pulled.current = true;
-      applyRef.current(mergeProfiles(mine, data.data));
-    } catch {
-      setSync("offline");
-    } finally {
-      pulling.current = false;
-    }
+  const forget = useCallback(() => {
+    writeStore(null);
+    setUser(null);
+    setSync("idle");
+    pulled.current = false;
   }, []);
 
+  // Bring in the account's copy (other devices' changes). Skipped while this device has unsent edits.
+  const pull = useCallback(async () => {
+    const mine = localRef.current;
+    if (!mine || busy.current || dirty.current) return;
+    busy.current = true;
+    try {
+      const { data } = await call<{ data: CloudData | null }>("/api/profile");
+      const merged = mergeProfiles(mine, data.data);
+      pulled.current = true;
+      lastSent.current = data.data ? JSON.stringify(data.data) : "";
+      if (!same(merged, mine)) applyRef.current(merged);
+      else if (!data.data || !same(merged, data.data)) setRetry((n) => n + 1); // account is behind: upload
+      else setSync("saved");
+    } catch (e) {
+      if ((e as { status?: number }).status === 401) forget();
+      else setSync("offline");
+    } finally {
+      busy.current = false;
+    }
+  }, [forget]);
+
   const signedIn = (token: string | null, u: User) => {
-    writeToken(token);
+    if (token) writeStore({ token, user: u });
     pulled.current = false;
+    dirty.current = false;
     setUser(u);
   };
 
-  // Restore the session on start.
+  // On start: show the remembered account right away, then confirm it with the server.
   useEffect(() => {
-    if (!readToken()) { setChecked(true); return; }
+    const stored = readStore();
+    if (stored?.user) setUser(stored.user);
+    setReady(true);
+    if (!stored) return;
     call<{ user: User } | null>("/api/auth/get-session")
-      .then(({ data }) => { if (data?.user) setUser(data.user); else writeToken(null); })
-      .catch(() => { /* offline: stay signed in, sync later */ })
-      .finally(() => setChecked(true));
-  }, []);
+      .then(({ data }) => {
+        if (data?.user) {
+          writeStore({ token: stored.token, user: data.user });
+          try { localStorage.removeItem("traffix-auth-v1"); } catch {}
+          setUser(data.user);
+        }
+        else forget();
+      })
+      .catch(() => { /* offline: keep the remembered account, sync later */ });
+  }, [forget]);
 
-  // First sync once the device's data is loaded and the user is known.
+  // First merge once the device's data is loaded and the user is known.
   useEffect(() => {
     if (user && local && !pulled.current) pull();
   }, [user, local, pull]);
 
-  // Lost connection: try again as soon as the device is back online.
+  // Keep up with other devices: when the app comes back to the screen, when the connection
+  // returns, and every few seconds while it's open.
   useEffect(() => {
     if (!user) return;
-    const again = () => (pulled.current ? setRetry((n) => n + 1) : pull());
-    window.addEventListener("online", again);
-    return () => window.removeEventListener("online", again);
+    const again = () => { if (document.visibilityState === "visible") pull(); };
+    const online = () => (dirty.current ? setRetry((n) => n + 1) : pull());
+    document.addEventListener("visibilitychange", again);
+    window.addEventListener("focus", again);
+    window.addEventListener("online", online);
+    const timer = window.setInterval(again, POLL_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", again);
+      window.removeEventListener("focus", again);
+      window.removeEventListener("online", online);
+      clearInterval(timer);
+    };
   }, [user, pull]);
 
-  // Every change is uploaded a moment later.
+  // Every change is uploaded a moment later (only what actually changed).
   useEffect(() => {
     if (!user || !local || !pulled.current) return;
+    const body = JSON.stringify(local);
+    if (body === lastSent.current) { setSync("saved"); return; }
+    dirty.current = true;
     setSync("saving");
     const t = setTimeout(() => {
       call("/api/profile", { method: "PUT", body: JSON.stringify({ data: local }) })
-        .then(() => setSync("saved"), () => setSync("offline"));
-    }, 1500);
+        .then(() => { lastSent.current = body; dirty.current = false; setSync("saved"); })
+        .catch((e) => { if ((e as { status?: number }).status === 401) forget(); else setSync("offline"); });
+    }, UPLOAD_DELAY);
     return () => clearTimeout(t);
-  }, [user, local, retry]);
+  }, [user, local, retry, forget]);
 
   const signUp = async (username: string, password: string) => {
     const u = normalizeUsername(username);
@@ -131,8 +185,7 @@ export function useAccount(local: CloudData | null, apply: (d: CloudData) => voi
       method: "POST",
       body: JSON.stringify({ email: placeholderEmail(u), name: u, username: u, password }),
     });
-    writeToken(token);
-    const rec = await call<{ code: string }>("/api/account/recovery", { method: "POST" });
+    const rec = await call<{ code: string }>("/api/account/recovery", { method: "POST" }, token ?? undefined);
     setCode(rec.data.code);
     setMode("code");
     signedIn(token, data.user);
@@ -164,14 +217,12 @@ export function useAccount(local: CloudData | null, apply: (d: CloudData) => voi
   };
 
   const signOut = async () => {
-    await call("/api/auth/sign-out", { method: "POST", body: "{}" }).catch(() => {});
-    writeToken(null);
-    setUser(null);
-    setSync("idle");
-    pulled.current = false;
+    const token = readStore()?.token;
+    forget(); // instant; the server is told in the background
+    if (token) call("/api/auth/sign-out", { method: "POST", body: "{}" }, token).catch(() => {});
   };
 
-  return { user, checked, mode, setMode, code, sync, signUp, signIn, recover, newCode, signOut };
+  return { user, ready, mode, setMode, code, sync, signUp, signIn, recover, newCode, signOut };
 }
 
 export type Account = ReturnType<typeof useAccount>;
@@ -182,13 +233,13 @@ const memberSince = (iso: string) =>
 const syncText: Record<Sync, string> = {
   idle: "",
   saving: "Se salvează în cont…",
-  saved: "Jocurile și lista sunt salvate în cont",
+  saved: "Totul e salvat în cont",
   offline: "Fără conexiune. Salvez când revine internetul.",
 };
 
 /** Account panel: in the side column on wide screens and at the top of the menu. */
 export function AccountPanel({ acc, id, savedGames }: { acc: Account; id: string; savedGames: number }) {
-  if (!acc.checked) return null;
+  if (!acc.ready) return null;
   if (!acc.user) {
     return (
       <section className="panel" aria-labelledby={id}>
@@ -242,46 +293,96 @@ const titles: Record<Mode, string> = {
   code: "Codul tău de recuperare",
 };
 
+const fieldsFor: Record<FormMode, Field[]> = {
+  signin: ["username", "password"],
+  signup: ["username", "password"],
+  recover: ["username", "code", "password"],
+};
+const EMPTY = { username: "", code: "", password: "" };
+
+/** Checks, while the user types, whether a username is still free (sign-up only). */
+function useUsernameCheck(mode: Mode | null, username: string) {
+  const [state, setState] = useState<"" | "checking" | "free" | "taken">("");
+  useEffect(() => {
+    const u = normalizeUsername(username);
+    if (mode !== "signup" || !USERNAME_RE.test(u)) { setState(""); return; }
+    setState("checking");
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`${API}/api/auth/is-username-available`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: u }), signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setState(d?.available === false ? "taken" : d?.available ? "free" : ""))
+        .catch(() => setState(""));
+    }, 200);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [mode, username]);
+  return state;
+}
+
 /** One dialog for every account step: sign in, sign up, forgotten password, and showing the recovery code. */
 export function AccountDialog({ acc }: { acc: Account }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [error, setError] = useState("");
+  const [values, setValues] = useState(EMPTY);
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const mode = acc.mode;
+  const nameState = useUsernameCheck(mode, values.username);
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (mode && !d.open) d.showModal();
     if (!mode && d.open) d.close();
-    setError("");
+    // Switching between sign in / sign up / recover keeps the username, clears the rest.
+    setValues((v) => ({ ...EMPTY, username: v.username }));
+    setErrors({});
+    setFormError("");
     setCopied(false);
+    setShowPass(false);
   }, [mode]);
 
   const close = () => { if (!busy) acc.setMode(null); };
 
+  const check = (f: Field, value: string) => (mode && mode !== "code" ? fieldError(mode, f, value) : "");
+
+  function change(f: Field, raw: string) {
+    const value = f === "code" ? formatRecoveryCode(raw) : raw;
+    setValues((v) => ({ ...v, [f]: value }));
+    setFormError("");
+    // A field that already shows an error re-checks on every keystroke, so it clears the moment it's right.
+    if (errors[f]) setErrors((e) => ({ ...e, [f]: check(f, value) }));
+  }
+
+  const blur = (f: Field) => { if (values[f]) setErrors((e) => ({ ...e, [f]: check(f, values[f]) })); };
+
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const username = String(f.get("username") ?? "");
-    const password = String(f.get("password") ?? "");
-    if (mode === "signup" && !USERNAME_RE.test(normalizeUsername(username))) {
-      setError("Numele trebuie să aibă 3-20 caractere: litere mici, cifre, punct sau _.");
-      return;
+    if (!mode || mode === "code") return;
+    const found: Partial<Record<Field, string>> = {};
+    for (const f of fieldsFor[mode]) {
+      const msg = check(f, values[f]);
+      if (msg) found[f] = msg;
     }
-    if (mode !== "signin" && password.length < MIN_PASSWORD) {
-      setError(`Parola trebuie să aibă cel puțin ${MIN_PASSWORD} caractere.`);
-      return;
-    }
+    if (mode === "signup" && nameState === "taken") found.username = TAKEN;
+    setErrors(found);
+    const first = fieldsFor[mode].find((f) => found[f]);
+    if (first) { document.getElementById(`acc-${first}`)?.focus(); return; }
+
     setBusy(true);
-    setError("");
+    setFormError("");
     try {
-      if (mode === "signup") await acc.signUp(username, password);
-      else if (mode === "signin") await acc.signIn(username, password);
-      else if (mode === "recover") await acc.recover(username, String(f.get("code") ?? ""), password);
+      if (mode === "signup") await acc.signUp(values.username, values.password);
+      else if (mode === "signin") await acc.signIn(values.username, values.password);
+      else await acc.recover(values.username, values.code, values.password);
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message;
+      if (msg === TAKEN) { setErrors({ username: msg }); document.getElementById("acc-username")?.focus(); }
+      else setFormError(msg);
     } finally {
       setBusy(false);
     }
@@ -290,6 +391,9 @@ export function AccountDialog({ acc }: { acc: Account }) {
   async function copy() {
     try { await navigator.clipboard.writeText(acc.code); setCopied(true); } catch {}
   }
+
+  const describe = (f: Field, hint?: string) => [errors[f] ? `acc-${f}-err` : "", hint ?? ""].filter(Boolean).join(" ") || undefined;
+  const err = (f: Field) => errors[f] && <p id={`acc-${f}-err`} className="field-err" role="alert">{errors[f]}</p>;
 
   return (
     <dialog
@@ -320,27 +424,54 @@ export function AccountDialog({ acc }: { acc: Account }) {
               {mode === "recover" && (
                 <p className="dlg-sub">Scrie numele de utilizator, codul de recuperare primit la crearea contului și o parolă nouă.</p>
               )}
-              <label htmlFor="acc-user">Nume de utilizator</label>
+
+              <label htmlFor="acc-username">Nume de utilizator</label>
               <input
-                id="acc-user" name="username" required autoComplete="username" autoCapitalize="none"
-                spellCheck={false} maxLength={20} placeholder={mode === "signup" ? "de ex. rafa_99" : undefined}
+                id="acc-username" name="username" value={values.username} autoComplete="username" autoCapitalize="none"
+                spellCheck={false} maxLength={20} aria-invalid={!!errors.username} aria-describedby={describe("username", mode === "signup" ? "acc-username-state" : undefined)}
+                onChange={(e) => change("username", e.target.value)} onBlur={() => blur("username")}
               />
+              {err("username")}
+              {mode === "signup" && !errors.username && nameState && (
+                <p id="acc-username-state" className={`field-hint ${nameState === "taken" ? "bad" : nameState === "free" ? "good" : ""}`} aria-live="polite">
+                  {nameState === "taken" ? TAKEN : nameState === "free" ? "Numele e liber." : "Verific numele…"}
+                </p>
+              )}
+
               {mode === "recover" && (
                 <>
                   <label htmlFor="acc-code">Cod de recuperare</label>
                   <input
-                    id="acc-code" name="code" required autoComplete="one-time-code" autoCapitalize="characters"
-                    spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX" className="mono"
+                    id="acc-code" name="code" value={values.code} autoComplete="one-time-code" autoCapitalize="characters"
+                    spellCheck={false} inputMode="text" maxLength={19} className="mono"
+                    aria-invalid={!!errors.code} aria-describedby={describe("code")}
+                    onChange={(e) => change("code", e.target.value)} onBlur={() => blur("code")}
                   />
+                  {err("code")}
                 </>
               )}
-              <label htmlFor="acc-pass">{mode === "recover" ? "Parolă nouă" : "Parolă"}</label>
-              <input
-                id="acc-pass" name="password" type="password" required minLength={mode === "signin" ? undefined : MIN_PASSWORD}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              />
-              {mode !== "signin" && <p className="field-hint">Cel puțin {MIN_PASSWORD} caractere.</p>}
-              {error && <p className="field-err" role="alert">{error}</p>}
+
+              <label htmlFor="acc-password">{mode === "recover" ? "Parolă nouă" : "Parolă"}</label>
+              <div className="pw">
+                <input
+                  id="acc-password" name="password" value={values.password} type={showPass ? "text" : "password"}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"} autoCapitalize="none" spellCheck={false}
+                  aria-invalid={!!errors.password} aria-describedby={describe("password", mode !== "signin" ? "acc-password-hint" : undefined)}
+                  onChange={(e) => change("password", e.target.value)} onBlur={() => blur("password")}
+                />
+                <button
+                  type="button" className="pw-toggle" aria-pressed={showPass}
+                  aria-label={showPass ? "Ascunde parola" : "Arată parola"} onClick={() => setShowPass((s) => !s)}
+                >
+                  {showPass ? <EyeSlash size={20} weight="bold" aria-hidden="true" /> : <Eye size={20} weight="bold" aria-hidden="true" />}
+                </button>
+              </div>
+              {err("password")}
+              {mode !== "signin" && !errors.password && (
+                <p id="acc-password-hint" className="field-hint">Cel puțin {MIN_PASSWORD} caractere.</p>
+              )}
+
+              {formError && <p className="field-err form-err" role="alert">{formError}</p>}
 
               {mode === "signin" && (
                 <div className="dlg-links">
