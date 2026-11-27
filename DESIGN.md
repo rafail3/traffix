@@ -36,7 +36,7 @@ spacing: [4, 8, 12, 16, 20, 24, 40]
 
 Traffix is a counter you use in a moving car, often with one hand, often in bright daylight. The whole look comes from a European number plate: a blue band, a white plate with a thick dark border, and yellow for whatever has been counted. Everything else stays quiet, light and large enough to hit without looking twice.
 
-The app is the same on the website and in the Android APK. The website adds a side column on wide screens (Android download, GitHub) and a menu sheet on phones; those never appear inside the APK.
+The app is the same on the website and in the Android APK. The website adds a side column on wide screens (Android download, GitHub). Both have the burger menu; in the APK it skips the Android download panel and ends with the app version or the pending update.
 
 ## Colors
 
@@ -92,6 +92,10 @@ Plate 6px. Small controls 8px, buttons 10px, panels and the list 14px. The minus
 
 [Phosphor](https://phosphoricons.com) for interface icons, bold weight, 18–22px. Brand marks (Android, GitHub) are the official shapes from [Simple Icons](https://simpleicons.org), never redrawn. No emoji as icons.
 
+### Update bar
+
+Last item in the app menu while a newer APK is waiting: accent-tinted surface, an up-arrow icon, "Actualizare disponibilă" with old → new version in mono, and one primary "Instalează" button. A small accent dot on the burger points to it. It stays until the update is installed.
+
 ### The plate
 
 The total in the header: 2px dark border, 6px radius, blue `RO` strip on the left, the number in JetBrains Mono. It stays small; it's a badge, not a hero number.
@@ -107,5 +111,5 @@ The total in the header: 2px dark border, 6px radius, blue `RO` strip on the lef
 ### Don't
 
 - Don't add a second accent color or gradients.
-- Don't put anything from the side column or the menu into the APK view.
+- Don't put the side column or the Android download panel into the APK view.
 - Don't use yellow for anything except counts.

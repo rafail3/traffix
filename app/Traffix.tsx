@@ -9,6 +9,7 @@ import {
 import { App as CapApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { AndroidCard, useLatestApk } from "./AndroidDownload";
+import { UpdateBar, UpdateDialog, useAppUpdate } from "./AppUpdate";
 import { GitHubCard } from "./GitHubCard";
 import { DEFAULT_BRANDS } from "@/lib/brands";
 import { rankBrands, type Game } from "@/lib/rank";
@@ -62,6 +63,7 @@ export default function Traffix() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuDlg = useRef<HTMLDialogElement>(null);
   const apk = useLatestApk();
+  const upd = useAppUpdate();
   const viewRef = useRef(view);
   viewRef.current = view;
 
@@ -69,8 +71,9 @@ export default function Traffix() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const sub = CapApp.addListener("backButton", () => {
-      const open = [saveDlg.current, menuDlg.current].find((d) => d?.open);
-      if (open) open.close();
+      // Close whatever dialog is on top; a dialog can veto that through its cancel event.
+      const open = document.querySelector<HTMLDialogElement>("dialog[open]");
+      if (open) { if (open.dispatchEvent(new Event("cancel", { cancelable: true }))) open.close(); }
       else if (viewRef.current === "history") setView("game");
       else CapApp.minimizeApp();
     });
@@ -334,18 +337,17 @@ export default function Traffix() {
     <main className="wrap">
       <header className="topbar">
         <h1 className="brand">Traffix</h1>
-        {apk.status !== "native" && (
-          <button
-            className="icon-btn burger"
-            type="button"
-            aria-label="Meniu"
-            aria-haspopup="dialog"
-            aria-expanded={menuOpen}
-            onClick={() => { menuDlg.current?.showModal(); setMenuOpen(true); }}
-          >
-            <List size={24} weight="bold" aria-hidden="true" />
-          </button>
-        )}
+        <button
+          className="icon-btn burger"
+          type="button"
+          aria-label={upd.update ? "Meniu, actualizare disponibilă" : "Meniu"}
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          onClick={() => { menuDlg.current?.showModal(); setMenuOpen(true); }}
+        >
+          <List size={24} weight="bold" aria-hidden="true" />
+          {upd.update && <span className="badge-dot" aria-hidden="true" />}
+        </button>
       </header>
 
       <section className="score" aria-label="Jocul curent">
@@ -556,8 +558,9 @@ export default function Traffix() {
             <X size={22} weight="bold" aria-hidden="true" />
           </button>
         </div>
-        <AndroidCard apk={apk} />
+        {apk.status !== "native" && <AndroidCard apk={apk} />}
         <GitHubCard id="gh-sheet-title" />
+        <UpdateBar u={upd} onInstall={() => { menuDlg.current?.close(); upd.install(); }} />
       </dialog>
 
       <dialog ref={saveDlg} className="dlg" aria-labelledby="save-title">
@@ -583,6 +586,8 @@ export default function Traffix() {
           </div>
         </form>
       </dialog>
+
+      <UpdateDialog u={upd} />
     </>
   );
 }
