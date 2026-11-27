@@ -295,8 +295,9 @@ ol.g-counts { list-style: none; padding: 0; display: grid; gap: 4px; }
   transition: color .15s, text-decoration-color .15s;
 }
 .panel-link:hover { color: var(--fg); text-decoration-color: currentColor; }
-.panel-actions { display: grid; gap: 8px; }
-.panel-actions .btn { justify-content: center; }
+.panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.panel-actions.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.panel-actions .btn { width: 100%; justify-content: center; padding: 0 10px; white-space: nowrap; }
 .sync-line { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .85rem; color: var(--muted); }
 .sync-line svg { flex: none; color: var(--accent); }
 .sync-line.offline svg { color: var(--danger); }

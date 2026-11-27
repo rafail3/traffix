@@ -197,7 +197,7 @@ export function AccountPanel({ acc, id, savedGames }: { acc: Account; id: string
           <h2 id={id}>Contul tău</h2>
         </div>
         <p className="panel-text">Opțional. Cu un cont, jocurile salvate și lista ta de mărci te urmează pe orice telefon sau laptop.</p>
-        <div className="panel-actions">
+        <div className="panel-actions split">
           <button className="btn primary" type="button" onClick={() => acc.setMode("signup")}>
             <UserPlus size={18} weight="bold" aria-hidden="true" />Creează cont
           </button>
