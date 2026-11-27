@@ -59,7 +59,8 @@ jobs:
           LAST_TAG: ${{ steps.semrel.outputs.last_release_git_tag }}
         run: |
           mode=build
-          if [ -n "$LAST_TAG" ] && gh release view "$LAST_TAG" --json assets -q '.assets[].name' | grep -qx traffix.apk; then
+          assets=$([ -n "$LAST_TAG" ] && gh release view "$LAST_TAG" --json assets -q '.assets[].name' || true)
+          if grep -qx traffix.apk <<< "$assets" && grep -qx traffix.json <<< "$assets"; then
             # Release-worthy commits (feat/fix/perf/refactor/revert or breaking) not scoped `web`.
             app=$(git log --format=%s "$LAST_HEAD..HEAD" |
               grep -E '^(feat|fix|perf|refactor|revert)(\([^)]*\))?!?:|^[a-z]+(\([^)]*\))?!:' |
@@ -83,9 +84,10 @@ jobs:
     steps:
       - name: Copy the APK from the previous release
         run: |
-          gh release download "$LAST_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'traffix.apk*'
+          gh release download "$LAST_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'traffix.*'
           sha256sum -c traffix.apk.sha256
-          gh release upload "$TAG" traffix.apk traffix.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+          # traffix.json keeps the APK's own version, so installed apps see no update.
+          gh release upload "$TAG" traffix.apk traffix.apk.sha256 traffix.json --repo "$GITHUB_REPOSITORY" --clobber
 
   apk:
     name: Signed APK
@@ -139,7 +141,10 @@ jobs:
           MINOR: ${{ needs.release.outputs.minor }}
           PATCH: ${{ needs.release.outputs.patch }}
         # 1.2.3 -> 1002003: always grows with the version, fits Android's int limit.
-        run: ./gradlew assembleRelease --no-daemon -PversionName="$VERSION" -PversionCode="$((MAJOR * 1000000 + MINOR * 1000 + PATCH))"
+        run: |
+          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          ./gradlew assembleRelease --no-daemon -PversionName="$VERSION" -PversionCode="$VERSION_CODE"
 
       - name: Verify signature
         run: |
@@ -149,10 +154,16 @@ jobs:
           cp "$APK" traffix.apk
           sha256sum traffix.apk > traffix.apk.sha256
 
+      # What the app reads to decide whether to offer an update (see app/AppUpdate.tsx).
+      - name: Update manifest
+        run: |
+          jq -n --arg name "$VERSION" --argjson code "$VERSION_CODE"             --arg sha "$(cut -d' ' -f1 traffix.apk.sha256)" --argjson size "$(stat -c%s traffix.apk)"             --arg url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/traffix.apk"             '{versionName: $name, versionCode: $code, sha256: $sha, size: $size, url: $url}' > traffix.json
+          cat traffix.json
+
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" traffix.apk traffix.apk.sha256 --clobber
+        run: gh release upload "$TAG" traffix.apk traffix.apk.sha256 traffix.json --clobber
 
       - name: Clean up key
         if: always()
