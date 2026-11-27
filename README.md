@@ -13,9 +13,9 @@ Tap a brand, the number goes up. Save the game, and next time the brands you see
 
 <br>
 
-<img src="docs/screens/desktop.png" alt="Traffix on a laptop: the brand list with counts, and the Android download card on the right" width="72%">
+<img src="docs/screens/desktop.png" alt="Traffix on a laptop: the brand list with counts, and the Android download card on the right" height="400">
 &nbsp;
-<img src="docs/screens/phone.png" alt="Traffix on a phone: the same brand list in one column" width="22%">
+<img src="docs/screens/phone.png" alt="Traffix on a phone: the same brand list in one column" height="400">
 
 </div>
 
