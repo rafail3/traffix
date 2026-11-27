@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Node 24 or newer. You don't need Android Studio: CI builds the Android app on every pull request.
+Node 26 or newer. You don't need Android Studio: CI builds the Android app on every pull request.
 
 ## Making a change
 
