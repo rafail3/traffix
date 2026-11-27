@@ -48,3 +48,6 @@ client_secret*.json
 
 # internal notes, kept local only
 docs/HANDOVER.md
+
+# newest APK, copied in at build time (scripts/fetch-apk.mjs)
+public/apk/

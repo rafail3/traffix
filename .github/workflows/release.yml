@@ -165,6 +165,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$TAG" traffix.apk traffix.apk.sha256 traffix.json --clobber
 
+      # The website serves its own copy of the APK (scripts/fetch-apk.mjs runs at build time),
+      # so rebuild it now that a new APK exists.
+      - name: Refresh the website
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK is not set; the site keeps the previous APK until its next deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK" > /dev/null
+
       - name: Clean up key
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"

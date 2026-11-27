@@ -7,34 +7,43 @@ import { siAndroid } from "simple-icons";
 import { Mark } from "./Mark";
 
 const REPO = "rafail3/traffix";
-// Our own short link: next.config.ts redirects /download to the newest release's APK, so the
-// QR and the button start the download right away and never show a GitHub page.
+// Served by our own site (next.config.ts): the APK file itself, so the QR and the button start
+// the download right away, with no detour through GitHub.
 const DOWNLOAD_PATH = "/download";
 
 export type Apk =
   | { status: "loading" | "none" | "native" }
   | { status: "ready"; version: string; mb: string };
 
-/** Latest released APK, read once from GitHub Releases. "native" inside the Android app itself. */
+const mb = (bytes: number) => new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 1 }).format(bytes / 1048576);
+
+/**
+ * The APK the site serves. On Vercel it's the copy made at build time (/apk/latest.json, same
+ * version the file is named after); elsewhere it falls back to GitHub Releases. "native" inside
+ * the Android app itself.
+ */
 export function useLatestApk(): Apk {
   const [apk, setApk] = useState<Apk>({ status: "loading" });
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) { setApk({ status: "native" }); return; }
     const ctrl = new AbortController();
+    const fromSite = () =>
+      fetch("/apk/latest.json", { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((a) => (a ? { version: `v${a.versionName}`, size: a.size as number } : null));
     // The list endpoint (not /latest) answers 200 with [] before the first release, so no 404 in the console.
-    fetch(`https://api.github.com/repos/${REPO}/releases?per_page=1`, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : []))
-      .then(([rel]) => {
-        const file = rel?.assets?.find((a: { name: string }) => a.name === "traffix.apk");
-        setApk(file
-          ? {
-              status: "ready",
-              version: rel.tag_name,
-              mb: new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 1 }).format(file.size / 1048576),
-            }
-          : { status: "none" });
-      })
+    const fromGitHub = () =>
+      fetch(`https://api.github.com/repos/${REPO}/releases?per_page=1`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(([rel]) => {
+          const file = rel?.assets?.find((a: { name: string }) => a.name === "traffix.apk");
+          return file ? { version: rel.tag_name as string, size: file.size as number } : null;
+        });
+    fromSite()
+      .catch(() => null)
+      .then((a) => a ?? fromGitHub())
+      .then((a) => setApk(a ? { status: "ready", version: a.version, mb: mb(a.size) } : { status: "none" }))
       .catch(() => { if (!ctrl.signal.aborted) setApk({ status: "none" }); });
     return () => ctrl.abort();
   }, []);
@@ -70,7 +79,7 @@ export function AndroidCard({ apk, qr = false }: { apk: Apk; qr?: boolean }) {
       )}
       {ready ? (
         <>
-          <a className="btn primary block" href={DOWNLOAD_PATH}>
+          <a className="btn primary block" href={DOWNLOAD_PATH} download>
             <DownloadSimple size={18} weight="bold" aria-hidden="true" />
             Descarcă APK
           </a>
